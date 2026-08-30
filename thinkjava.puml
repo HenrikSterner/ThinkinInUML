@@ -1,0 +1,65 @@
+' ===============================
+'  Thinking in Java style theme
+'  Monochrome, clean, book-like
+' ===============================
+
+' Global look
+skinparam monochrome true
+skinparam shadowing false
+skinparam roundCorner 0
+skinparam dpi 150
+skinparam linetype ortho
+
+skinparam backgroundColor white
+skinparam defaultFontName "Consolas"
+
+' Spacing
+skinparam Padding 4
+skinparam NodeMargin 8
+skinparam NodeBorderThickness 1
+
+' Classes
+skinparam class {
+  BackgroundColor white
+  BorderColor black
+  FontColor black
+  AttributeFontColor black
+  AttributeIconSize 0
+}
+
+' 🔑 THIS removes the (C)
+skinparam classIconSize 0
+skinparam classStereotypeIconSize 0
+skinparam circledCharacterRadius 0
+skinparam circledCharacterFontSize 0
+
+skinparam classFontSize 13
+skinparam classAttributeFontSize 11
+
+' Interfaces & abstract classes
+skinparam interface {
+  BackgroundColor white
+  BorderColor black
+  FontColor black
+}
+
+skinparam abstractClass {
+  BackgroundColor white
+  BorderColor black
+  FontColor black
+}
+
+' Relationships
+skinparam ArrowColor black
+skinparam ArrowThickness 1
+skinparam ArrowFontColor black
+skinparam ArrowFontSize 11
+
+
+
+' Titles
+skinparam titleFontColor black
+skinparam titleFontSize 14
+
+' Reduce clutter
+hide empty members

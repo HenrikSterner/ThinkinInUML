@@ -1,0 +1,690 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>ThinkJava klassediagram-editor</title>
+  <style>
+    :root {
+      --ink: #111;
+      --paper: #fff;
+      --panel: #f4f4f4;
+      --line: #c9c9c9;
+      --accent: #2563eb;
+      --muted: #666;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; margin: 0; }
+    body {
+      color: var(--ink);
+      background: #e9e9e9;
+      font-family: Arial, sans-serif;
+      overflow: hidden;
+    }
+    button, input, textarea, select { font: inherit; }
+    button {
+      color: var(--ink);
+      border: 1px solid #aaa;
+      border-radius: 3px;
+      background: white;
+      padding: 7px 10px;
+      cursor: pointer;
+    }
+    button:hover { background: #ededed; }
+    button.active { background: var(--ink); color: white; border-color: var(--ink); }
+    .app { height: 100%; display: grid; grid-template-rows: auto 1fr; }
+    .topbar {
+      min-height: 58px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 13px;
+      background: white;
+      border-bottom: 1px solid #bbb;
+      flex-wrap: wrap;
+    }
+    .brand { font-size: 18px; font-weight: bold; margin-right: 9px; white-space: nowrap; }
+    .toolbar-separator { width: 1px; height: 28px; background: #ccc; margin: 0 3px; }
+    .topbar .spacer { flex: 1; }
+    .theme-badge { color: var(--muted); font-size: 13px; white-space: nowrap; }
+    .workspace { min-height: 0; display: grid; grid-template-columns: 250px 1fr 285px; }
+    .sidebar, .inspector {
+      min-height: 0;
+      overflow: auto;
+      padding: 15px;
+      background: var(--panel);
+    }
+    .sidebar { border-right: 1px solid #bbb; }
+    .inspector { border-left: 1px solid #bbb; }
+    .section { margin-bottom: 20px; }
+    .section h2 {
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: .08em;
+      margin: 0 0 9px;
+      color: #555;
+    }
+    .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+    .tool-grid button { min-height: 40px; }
+    .help { color: #555; font-size: 13px; line-height: 1.45; margin: 10px 0 0; }
+    .help kbd { border: 1px solid #bbb; border-radius: 3px; background: white; padding: 1px 4px; }
+    .canvas-wrap { min-width: 0; min-height: 0; overflow: auto; background: #dcdcdc; }
+    #canvas {
+      display: block;
+      width: 1600px;
+      height: 1000px;
+      margin: 24px;
+      background: white;
+      box-shadow: 0 1px 5px #999;
+      user-select: none;
+      touch-action: none;
+    }
+    .field { margin-bottom: 12px; }
+    .field label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
+    .field input, .field textarea, .field select { width: 100%; border: 1px solid #aaa; border-radius: 3px; padding: 7px; background: white; }
+    .field textarea { min-height: 75px; resize: vertical; font-family: Consolas, 'Courier New', monospace; font-size: 12px; }
+    .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+    .danger { color: #a00; border-color: #c88; }
+    .muted { color: var(--muted); font-size: 13px; line-height: 1.4; }
+    .empty { color: #666; line-height: 1.5; font-size: 14px; }
+    .status { min-height: 34px; padding: 8px 12px; border-top: 1px solid #ccc; background: #fafafa; color: #555; font-size: 12px; }
+    .node-title { font-family: Arial, sans-serif; font-weight: bold; }
+    .node-body { font-family: Consolas, 'Courier New', monospace; }
+    .node.interface .node-title, .node.abstract .node-title { font-style: italic; }
+    .node.selected rect { stroke: var(--accent); stroke-width: 2.5; }
+    .edge-hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
+    .edge-line { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square; pointer-events: none; }
+    .edge.selected .edge-line { stroke: var(--accent); stroke-width: 2.5; }
+    .handle { fill: white; stroke: var(--accent); stroke-width: 2; cursor: move; }
+    .handle.endpoint { fill: #dbeafe; }
+    .relation-label { font: 13px Arial, sans-serif; fill: var(--ink); paint-order: stroke; stroke: white; stroke-width: 5px; stroke-linejoin: round; }
+    .selection-note { color: var(--accent); font-size: 12px; margin: 0 0 10px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div class="brand">ThinkJava diagram-editor</div>
+      <button id="newBtn" title="Nyt diagram (Ctrl+N)">Nyt</button>
+      <button id="openJsonBtn">Åbn JSON</button>
+      <button id="saveJsonBtn">Gem JSON</button>
+      <button id="openPumlBtn">Åbn .puml</button>
+      <button id="themeBtn" title="Vælg thinkjava.puml eller en anden tema-fil">Brug thinkjava.puml</button>
+      <div class="toolbar-separator"></div>
+      <button id="exportBtn" title="Eksportér som PNG (Ctrl+S)">Gem som PNG</button>
+      <div class="spacer"></div>
+      <div class="theme-badge" id="themeBadge">Tema: thinkjava.puml · ortho · monochrome</div>
+    </header>
+
+    <div class="workspace">
+      <aside class="sidebar">
+        <div class="section">
+          <h2>Værktøjer</h2>
+          <div class="tool-grid">
+            <button id="selectTool" class="active">Vælg</button>
+            <button id="classTool">+ Klasse</button>
+            <button id="relationTool">+ Pil</button>
+          </div>
+          <p class="help">
+            Træk klasserne med musen. Vælg <b>+ Pil</b>, klik på en kildeklasse og derefter på målklassen.<br><br>
+            Valgte pile kan justeres ved at trække de blå håndtag. Brug <kbd>Delete</kbd> til at slette det valgte.
+          </p>
+        </div>
+        <div class="section">
+          <h2>Relationstyper</h2>
+          <p class="muted">Arv bruger åben trekant. Aggregation bruger diamant. Alle nye pile får et ortogonalt layout.</p>
+        </div>
+        <div class="section">
+          <h2>Format</h2>
+          <p class="muted">Hvid baggrund, sort tekst, Consolas og skarpe hjørner følger indstillingerne i <code>thinkjava.puml</code>.</p>
+        </div>
+      </aside>
+
+      <main class="canvas-wrap" id="canvasWrap">
+        <svg id="canvas" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1600 1000" aria-label="Klassediagram">
+          <defs>
+            <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
+              <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" stroke-width="1"/>
+            </pattern>
+            <marker id="inheritanceMarker" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto">
+              <path d="M 1 1 L 14 8 L 1 15 Z" fill="white" stroke="black" stroke-width="1.2"/>
+            </marker>
+            <marker id="dependencyMarker" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto">
+              <path d="M 1 1 L 11 6.5 L 1 12" fill="none" stroke="black" stroke-width="1.2"/>
+            </marker>
+            <marker id="aggregationMarker" markerWidth="17" markerHeight="17" refX="8" refY="8" orient="auto-start-reverse">
+              <path d="M 1 8 L 8 1 L 15 8 L 8 15 Z" fill="white" stroke="black" stroke-width="1.2"/>
+            </marker>
+            <marker id="compositionMarker" markerWidth="17" markerHeight="17" refX="8" refY="8" orient="auto-start-reverse">
+              <path d="M 1 8 L 8 1 L 15 8 L 8 15 Z" fill="black" stroke="black" stroke-width="1.2"/>
+            </marker>
+          </defs>
+          <rect width="1600" height="1000" fill="url(#grid)"/>
+          <g id="edges"></g>
+          <g id="nodes"></g>
+          <g id="handles"></g>
+        </svg>
+      </main>
+
+      <aside class="inspector" id="inspector">
+        <div class="empty">Vælg en klasse eller en pil for at redigere den.</div>
+      </aside>
+    </div>
+    <div class="status" id="status">Klar. Åbn filen direkte i browseren for at bruge editoren.</div>
+  </div>
+
+  <input id="jsonFile" type="file" accept=".json,application/json" hidden>
+  <input id="pumlFile" type="file" accept=".puml,.plantuml,.txt" hidden>
+  <input id="themeFile" type="file" accept=".puml,.plantuml,.txt" hidden>
+
+  <script>
+    'use strict';
+
+    const SVG_NS = 'http://www.w3.org/2000/svg';
+    const GRID = 10;
+    const canvas = document.getElementById('canvas');
+    const edgesLayer = document.getElementById('edges');
+    const nodesLayer = document.getElementById('nodes');
+    const handlesLayer = document.getElementById('handles');
+    const inspector = document.getElementById('inspector');
+    const statusEl = document.getElementById('status');
+    const themeBadge = document.getElementById('themeBadge');
+
+    const state = {
+      version: 1,
+      themeName: 'thinkjava.puml',
+      mode: 'select',
+      relationStart: null,
+      selected: null,
+      dragging: null,
+      nextNode: 1,
+      nextEdge: 1,
+      nodes: [],
+      edges: []
+    };
+
+    const typeNames = {
+      association: 'Association (--)',
+      aggregation: 'Aggregation (o--)',
+      composition: 'Composition (*--)',
+      inheritance: 'Arv (<|--)',
+      dependency: 'Afhængighed (..>)'
+    };
+
+    function el(name, attrs = {}, text = null) {
+      const n = document.createElementNS(SVG_NS, name);
+      Object.entries(attrs).forEach(([key, value]) => n.setAttribute(key, value));
+      if (text !== null) n.textContent = text;
+      return n;
+    }
+
+    function htmlEscape(value) {
+      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+    }
+
+    function lines(value) {
+      return String(value ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+    }
+
+    function nodeHeight(node) {
+      const sections = [lines(node.attributes), lines(node.methods)].filter(section => section.length);
+      return 40 + (sections.length ? sections.reduce((total, section) => total + 26 + section.length * 22, 0) : 22);
+    }
+
+    function nodeById(id) { return state.nodes.find(n => n.id === id); }
+    function edgeById(id) { return state.edges.find(e => e.id === id); }
+    function snap(v) { return Math.round(v / GRID) * GRID; }
+
+    function pointFromEvent(event) {
+      const p = canvas.createSVGPoint();
+      p.x = event.clientX;
+      p.y = event.clientY;
+      const matrix = canvas.getScreenCTM();
+      return matrix ? p.matrixTransform(matrix.inverse()) : {x: event.offsetX, y: event.offsetY};
+    }
+
+    function sidePoint(node, side) {
+      const h = nodeHeight(node);
+      if (side === 'top') return {x: node.x + node.w / 2, y: node.y};
+      if (side === 'bottom') return {x: node.x + node.w / 2, y: node.y + h};
+      if (side === 'left') return {x: node.x, y: node.y + h / 2};
+      return {x: node.x + node.w, y: node.y + h / 2};
+    }
+
+    function nearestSide(node, point) {
+      const h = nodeHeight(node);
+      const candidates = [
+        ['top', Math.abs(point.y - node.y)],
+        ['bottom', Math.abs(point.y - (node.y + h))],
+        ['left', Math.abs(point.x - node.x)],
+        ['right', Math.abs(point.x - (node.x + node.w))]
+      ];
+      return candidates.sort((a, b) => a[1] - b[1])[0][0];
+    }
+
+    function defaultSides(source, target) {
+      const sx = source.x + source.w / 2, sy = source.y + nodeHeight(source) / 2;
+      const tx = target.x + target.w / 2, ty = target.y + nodeHeight(target) / 2;
+      if (Math.abs(tx - sx) >= Math.abs(ty - sy)) return tx >= sx ? ['right', 'left'] : ['left', 'right'];
+      return ty >= sy ? ['bottom', 'top'] : ['top', 'bottom'];
+    }
+
+    function autoBends(edge) {
+      const source = nodeById(edge.from), target = nodeById(edge.to);
+      if (!source || !target) return [];
+      const s = sidePoint(source, edge.startSide), t = sidePoint(target, edge.endSide);
+      if (s.x === t.x || s.y === t.y) return [];
+      if (edge.startSide === 'left' || edge.startSide === 'right') {
+        const mid = snap((s.x + t.x) / 2);
+        return [{x: mid, y: s.y}, {x: mid, y: t.y}];
+      }
+      const mid = snap((s.y + t.y) / 2);
+      return [{x: s.x, y: mid}, {x: t.x, y: mid}];
+    }
+
+    function edgePoints(edge) {
+      const source = nodeById(edge.from), target = nodeById(edge.to);
+      if (!source || !target) return [];
+      if (!edge.manual) edge.bends = autoBends(edge);
+      return [sidePoint(source, edge.startSide), ...(edge.bends || []), sidePoint(target, edge.endSide)];
+    }
+
+    function pathData(points) {
+      return points.map((p, i) => `${i ? 'L' : 'M'} ${Math.round(p.x)} ${Math.round(p.y)}`).join(' ');
+    }
+
+    function markerFor(type) {
+      if (type === 'inheritance') return 'url(#inheritanceMarker)';
+      if (type === 'dependency') return 'url(#dependencyMarker)';
+      return null;
+    }
+
+    function startMarkerFor(type) {
+      if (type === 'aggregation') return 'url(#aggregationMarker)';
+      if (type === 'composition') return 'url(#compositionMarker)';
+      return null;
+    }
+
+    function render() {
+      edgesLayer.replaceChildren();
+      nodesLayer.replaceChildren();
+      handlesLayer.replaceChildren();
+
+      for (const edge of state.edges) {
+        const points = edgePoints(edge);
+        if (points.length < 2) continue;
+        const group = el('g', {'data-edge-id': edge.id, class: `edge${state.selected?.kind === 'edge' && state.selected.id === edge.id ? ' selected' : ''}`});
+        const hit = el('path', {d: pathData(points), class: 'edge-hit', 'data-edge-id': edge.id});
+        const lineAttrs = {d: pathData(points), class: 'edge-line', 'data-edge-id': edge.id};
+        const endMarker = markerFor(edge.type);
+        const startMarker = startMarkerFor(edge.type);
+        if (endMarker) lineAttrs['marker-end'] = endMarker;
+        if (startMarker) lineAttrs['marker-start'] = startMarker;
+        group.append(hit, el('path', lineAttrs));
+        if (edge.label) {
+          const mid = points[Math.floor(points.length / 2)];
+          group.append(el('text', {x: mid.x + 7, y: mid.y - 7, class: 'relation-label'}, edge.label));
+        }
+        edgesLayer.append(group);
+
+        if (state.selected?.kind === 'edge' && state.selected.id === edge.id) {
+          points.forEach((point, index) => {
+            const handle = el('circle', {cx: point.x, cy: point.y, r: index === 0 || index === points.length - 1 ? 6 : 5, class: `handle${index === 0 || index === points.length - 1 ? ' endpoint' : ''}`, 'data-edge-id': edge.id, 'data-point-index': index});
+            handlesLayer.append(handle);
+          });
+        }
+      }
+
+      for (const node of state.nodes) {
+        const h = nodeHeight(node);
+        const attrs = lines(node.attributes);
+        const methods = lines(node.methods);
+        const sections = [attrs, methods].filter(section => section.length);
+        const group = el('g', {class: `node ${node.type}${state.selected?.kind === 'node' && state.selected.id === node.id ? ' selected' : ''}`, 'data-node-id': node.id});
+        group.append(el('rect', {x: node.x, y: node.y, width: node.w, height: h, fill: 'white', stroke: 'black', 'stroke-width': 1.5}));
+        group.append(el('line', {x1: node.x, y1: node.y + 40, x2: node.x + node.w, y2: node.y + 40, stroke: 'black', 'stroke-width': 1.5}));
+        group.append(el('text', {x: node.x + node.w / 2, y: node.y + 27, 'text-anchor': 'middle', class: 'node-title'}, node.name || 'Unnamed'));
+        let cursor = node.y + 40;
+        sections.forEach((section, sectionIndex) => {
+          if (sectionIndex > 0) {
+            group.append(el('line', {x1: node.x, y1: cursor, x2: node.x + node.w, y2: cursor, stroke: 'black', 'stroke-width': 1.5}));
+          }
+          section.forEach((line, i) => group.append(el('text', {x: node.x + 12, y: cursor + 22 + i * 22, class: 'node-body', 'font-size': 14}, line)));
+          cursor += 26 + section.length * 22;
+        });
+        nodesLayer.append(group);
+      }
+    }
+
+    function setStatus(message) { statusEl.textContent = message; }
+
+    function select(kind, id) {
+      state.selected = kind && id ? {kind, id} : null;
+      renderInspector();
+      render();
+    }
+
+    function setMode(mode) {
+      state.mode = mode;
+      state.relationStart = null;
+      document.getElementById('selectTool').classList.toggle('active', mode === 'select');
+      document.getElementById('classTool').classList.toggle('active', mode === 'class');
+      document.getElementById('relationTool').classList.toggle('active', mode === 'relation');
+      setStatus(mode === 'class' ? 'Klik på lærredet for at placere en ny klasse.' : mode === 'relation' ? 'Klik på kildeklassen og derefter på målklassen.' : 'Vælg en klasse eller en pil.');
+    }
+
+    function renderInspector() {
+      if (!state.selected) {
+        inspector.innerHTML = '<div class="empty">Vælg en klasse eller en pil for at redigere den.</div>';
+        return;
+      }
+      if (state.selected.kind === 'node') renderNodeInspector(nodeById(state.selected.id));
+      else renderEdgeInspector(edgeById(state.selected.id));
+    }
+
+    function renderNodeInspector(node) {
+      if (!node) return;
+      inspector.innerHTML = `
+        <div class="section"><h2>Klasse</h2><p class="selection-note">Valgt: ${htmlEscape(node.name || 'Unnamed')}</p>
+          <div class="field"><label for="nodeName">Navn</label><input id="nodeName" value="${htmlEscape(node.name)}"></div>
+          <div class="field"><label for="nodeType">Type</label><select id="nodeType"><option value="class">class</option><option value="interface">interface</option><option value="abstract">abstract class</option></select></div>
+          <div class="field"><label for="nodeWidth">Bredde</label><input id="nodeWidth" type="number" min="150" max="650" step="10" value="${node.w}"></div>
+          <div class="field"><label for="nodeAttrs">Attributter (én pr. linje)</label><textarea id="nodeAttrs">${htmlEscape(node.attributes)}</textarea></div>
+          <div class="field"><label for="nodeMethods">Metoder (valgfri, én pr. linje)</label><textarea id="nodeMethods">${htmlEscape(node.methods)}</textarea></div>
+          <button id="deleteNodeBtn" class="danger">Slet klasse</button>
+        </div>`;
+      document.getElementById('nodeType').value = node.type;
+      document.getElementById('nodeName').addEventListener('input', e => { node.name = e.target.value; render(); });
+      document.getElementById('nodeType').addEventListener('change', e => { node.type = e.target.value; render(); });
+      document.getElementById('nodeWidth').addEventListener('input', e => { node.w = Math.max(150, Math.min(650, Number(e.target.value) || 220)); render(); });
+      document.getElementById('nodeAttrs').addEventListener('input', e => { node.attributes = e.target.value; render(); });
+      document.getElementById('nodeMethods').addEventListener('input', e => { node.methods = e.target.value; render(); });
+      document.getElementById('deleteNodeBtn').addEventListener('click', () => deleteNode(node.id));
+    }
+
+    function renderEdgeInspector(edge) {
+      if (!edge) return;
+      const options = Object.entries(typeNames).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+      inspector.innerHTML = `
+        <div class="section"><h2>Pil / relation</h2><p class="selection-note">Valgt: ${htmlEscape(nodeById(edge.from)?.name || '?')} → ${htmlEscape(nodeById(edge.to)?.name || '?')}</p>
+          <div class="field"><label for="edgeType">Type</label><select id="edgeType">${options}</select></div>
+          <div class="field"><label for="edgeFrom">Fra</label><select id="edgeFrom">${state.nodes.map(n => `<option value="${n.id}">${htmlEscape(n.name)}</option>`).join('')}</select></div>
+          <div class="field"><label for="edgeTo">Til</label><select id="edgeTo">${state.nodes.map(n => `<option value="${n.id}">${htmlEscape(n.name)}</option>`).join('')}</select></div>
+          <div class="field"><label for="edgeLabel">Etiket (valgfri)</label><input id="edgeLabel" value="${htmlEscape(edge.label || '')}" placeholder="fx uses"></div>
+          <button id="addBendBtn">Tilføj knæk</button>
+          <button id="resetEdgeBtn">Nulstil rute</button>
+          <button id="deleteEdgeBtn" class="danger">Slet pil</button>
+          <p class="muted">Træk de blå håndtag på lærredet for at flytte pilepunkter. Endepunkterne vælger automatisk nærmeste side.</p>
+        </div>`;
+      document.getElementById('edgeType').value = edge.type;
+      document.getElementById('edgeFrom').value = edge.from;
+      document.getElementById('edgeTo').value = edge.to;
+      document.getElementById('edgeType').addEventListener('change', e => { edge.type = e.target.value; render(); });
+      document.getElementById('edgeFrom').addEventListener('change', e => { edge.from = e.target.value; edge.manual = false; render(); renderInspector(); });
+      document.getElementById('edgeTo').addEventListener('change', e => { edge.to = e.target.value; edge.manual = false; render(); renderInspector(); });
+      document.getElementById('edgeLabel').addEventListener('input', e => { edge.label = e.target.value; render(); });
+      document.getElementById('addBendBtn').addEventListener('click', () => addBend(edge));
+      document.getElementById('resetEdgeBtn').addEventListener('click', () => { edge.manual = false; edge.bends = []; render(); });
+      document.getElementById('deleteEdgeBtn').addEventListener('click', () => deleteEdge(edge.id));
+    }
+
+    function addBend(edge) {
+      const source = nodeById(edge.from), target = nodeById(edge.to);
+      if (!source || !target) return;
+      const s = sidePoint(source, edge.startSide), t = sidePoint(target, edge.endSide);
+      edge.manual = true;
+      edge.bends = s.x !== t.x && s.y !== t.y ? [{x: snap(s.x), y: snap(t.y)}] : [{x: snap((s.x + t.x) / 2), y: snap((s.y + t.y) / 2)}];
+      render();
+      setStatus('Knæk tilføjet. Træk det blå håndtag for at justere pilen.');
+    }
+
+    function deleteNode(id) {
+      state.nodes = state.nodes.filter(n => n.id !== id);
+      state.edges = state.edges.filter(e => e.from !== id && e.to !== id);
+      select(null, null);
+      setStatus('Klasse slettet.');
+    }
+
+    function deleteEdge(id) {
+      state.edges = state.edges.filter(e => e.id !== id);
+      select(null, null);
+      setStatus('Pil slettet.');
+    }
+
+    function addNode(x, y, values = {}) {
+      const node = {id: `n${state.nextNode++}`, name: values.name || 'NyKlasse', type: values.type || 'class', attributes: values.attributes || '', methods: values.methods || '', x: snap(x), y: snap(y), w: values.w || 240};
+      state.nodes.push(node);
+      select('node', node.id);
+      return node;
+    }
+
+    function addEdge(from, to, type = 'association') {
+      const source = nodeById(from), target = nodeById(to);
+      if (!source || !target || from === to) return null;
+      const [startSide, endSide] = defaultSides(source, target);
+      const edge = {id: `e${state.nextEdge++}`, from, to, type, label: '', startSide, endSide, bends: [], manual: false};
+      state.edges.push(edge);
+      select('edge', edge.id);
+      return edge;
+    }
+
+    function blankDiagram() {
+      state.nodes = [];
+      state.edges = [];
+      state.nextNode = 1;
+      state.nextEdge = 1;
+      state.selected = null;
+      renderInspector();
+      render();
+      setMode('select');
+      setStatus('Nyt tomt diagram. Brug + Klasse eller åbn en PlantUML-fil.');
+    }
+
+    function starter() {
+      state.nodes = [];
+      state.edges = [];
+      state.nextNode = 1;
+      state.nextEdge = 1;
+      const data = [
+        ['Flock', 80, 200, 320, '-numberOfFishes: int\n-fishes: list', 'update(): void\ndraw(): void\ngetFishes(): list\n__str__(): String'],
+        ['Fish', 520, 60, 480, 'screen\n-position: Vector\n-velocity: Vector', 'getPosition(): Vector\nsetPosition(Vector): void\ngetVelocity(): Vector\nsetVelocity(Vector): void\nupdate(): void\ndraw(): void\n__str__(): String\nseparation(list, int, float): Vector\nalignment(list, int, float): Vector\ncohesion(list, float): Vector\nscreenConfinement(String): Vector\nscreenConfinementBounce(): Vector\nscreenConfinementNatural(): Vector\nscreenConfinementSquared(): Vector\nscreenConfinementAlternative(): Vector'],
+        ['Vector', 1190, 130, 360, '-x: float\n-y: float', 'get_x(): float\nset_x(float): void\nget_y(): float\nset_y(float): void\n__add__(Vector): Vector\n__sub__(Vector): Vector\n__mul__(float): Vector\n__truediv__(float): Vector\n__str__(): String\nget_length(): float\nnormalize(): Vector\ndistance(Vector): float\ndotProduct(Vector): float\nlimit(float): Vector'],
+        ['BlueFlock', 40, 740, 270, 'numberOfFishes: int', 'makeFishes(): void'],
+        ['OrangeFlock', 350, 740, 270, 'numberOfFishes: int', 'makeFishes(): void'],
+        ['BlueFish', 680, 740, 270, 'fish_img: Surface', ''],
+        ['OrangeFish', 1010, 740, 270, 'fish_img: Surface', '']
+      ];
+      const byName = {};
+      data.forEach(([name, x, y, w, attributes, methods]) => { byName[name] = addNode(x, y, {name, w, attributes, methods}); });
+      state.edges = [];
+      [['Flock','Fish','aggregation'],['Fish','Vector','aggregation'],['Flock','BlueFlock','inheritance'],['Flock','OrangeFlock','inheritance'],['Fish','BlueFish','inheritance'],['Fish','OrangeFish','inheritance']].forEach(([from,to,type]) => addEdge(byName[from].id, byName[to].id, type));
+      state.selected = null;
+      renderInspector();
+      render();
+      setMode('select');
+      setStatus('Startdiagram indlæst fra fish.puml med thinkjava-stilen.');
+    }
+
+    function serialize() {
+      return JSON.stringify({version: state.version, themeName: state.themeName, nextNode: state.nextNode, nextEdge: state.nextEdge, nodes: state.nodes, edges: state.edges}, null, 2);
+    }
+
+    function download(name, content, type) {
+      const blob = new Blob([content], {type});
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url; a.download = name; a.click();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+    }
+
+    function saveJson() { download('klassediagram.json', serialize(), 'application/json'); setStatus('Diagram gemt som JSON.'); }
+
+    function loadJson(text) {
+      const data = JSON.parse(text);
+      if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) throw new Error('JSON-filen mangler nodes eller edges.');
+      state.nodes = data.nodes;
+      state.edges = data.edges;
+      state.nextNode = data.nextNode || state.nodes.length + 1;
+      state.nextEdge = data.nextEdge || state.edges.length + 1;
+      state.themeName = data.themeName || 'thinkjava.puml';
+      state.selected = null;
+      themeBadge.textContent = `Tema: ${state.themeName} · ortho · monochrome`;
+      renderInspector(); render();
+      setStatus('Diagram indlæst fra JSON.');
+    }
+
+    function relationType(token) {
+      if (token.includes('<|')) return 'inheritance';
+      if (token.includes('*')) return 'composition';
+      if (token.includes('o')) return 'aggregation';
+      if (token.includes('..')) return 'dependency';
+      return 'association';
+    }
+
+    function parsePuml(text) {
+      const linesIn = text.replace(/\r/g, '').split('\n');
+      const found = [];
+      const byName = {};
+      let current = null, separator = false;
+      for (let raw of linesIn) {
+        const line = raw.trim();
+        if (!line || line.startsWith("'") || line.startsWith('!')) continue;
+        const declaration = line.match(/^(abstract\s+class|class|interface)\s+([\w.$-]+)/i);
+        if (declaration) {
+          const type = declaration[1].toLowerCase().startsWith('interface') ? 'interface' : declaration[1].toLowerCase().startsWith('abstract') ? 'abstract' : 'class';
+          current = {name: declaration[2], type, attributes: [], methods: []};
+          byName[current.name] = current; found.push(current); separator = false;
+          if (!line.includes('{')) { current = null; separator = false; }
+          continue;
+        }
+        if (current && line === '}') { current = null; separator = false; continue; }
+        if (current) {
+          if (line === '--' || line === '..') { separator = true; continue; }
+          (separator ? current.methods : current.attributes).push(line);
+          continue;
+        }
+      }
+      const relations = [];
+      for (const raw of linesIn) {
+        const line = raw.trim();
+        if (!line || line.startsWith("'") || line.includes('[hidden]')) continue;
+        const match = line.match(/^(\w[\w.$-]*)\s+([*o]?--|<\|--|<\|\.\.|\.\.>|-->)\s+(\w[\w.$-]*)/);
+        if (match && byName[match[1]] && byName[match[3]]) relations.push([match[1], match[3], relationType(match[2])]);
+      }
+      state.nodes = []; state.edges = []; state.nextNode = 1; state.nextEdge = 1;
+      const cols = Math.max(1, Math.ceil(Math.sqrt(found.length)));
+      found.forEach((item, index) => {
+        const col = index % cols, row = Math.floor(index / cols);
+        byName[item.name].id = `n${state.nextNode++}`;
+        state.nodes.push({id: byName[item.name].id, name: item.name, type: item.type, attributes: item.attributes.join('\n'), methods: item.methods.join('\n'), x: 80 + col * 370, y: 70 + row * 330, w: 270});
+      });
+      relations.forEach(([from, to, type]) => addEdge(byName[from].id, byName[to].id, type));
+      state.selected = null; renderInspector(); render(); setMode('select');
+      setStatus(`${found.length} klasser og ${relations.length} relationer indlæst fra PlantUML.`);
+    }
+
+    function exportPng() {
+      const clone = canvas.cloneNode(true);
+      clone.querySelectorAll('.handle, .selected').forEach(node => {
+        if (node.classList.contains('handle')) node.remove();
+        else node.classList.remove('selected');
+      });
+      const style = document.createElementNS(SVG_NS, 'style');
+      style.textContent = `.node-title{font-family:Arial,sans-serif;font-weight:bold}.node-body{font-family:Consolas,'Courier New',monospace}.relation-label{font:13px Arial,sans-serif;fill:#111;paint-order:stroke;stroke:white;stroke-width:5px}.edge-line{fill:none;stroke:#111;stroke-width:1.5;stroke-linejoin:miter;stroke-linecap:square}.edge.selected .edge-line{stroke:#111;stroke-width:1.5}`;
+      clone.insertBefore(style, clone.firstChild);
+      clone.setAttribute('width', '1600'); clone.setAttribute('height', '1000');
+      const svgText = new XMLSerializer().serializeToString(clone);
+      const image = new Image();
+      const url = URL.createObjectURL(new Blob([svgText], {type: 'image/svg+xml;charset=utf-8'}));
+      image.onload = () => {
+        const scale = 2;
+        const out = document.createElement('canvas'); out.width = 1600 * scale; out.height = 1000 * scale;
+        const ctx = out.getContext('2d'); ctx.fillStyle = 'white'; ctx.fillRect(0, 0, out.width, out.height); ctx.drawImage(image, 0, 0, out.width, out.height);
+        URL.revokeObjectURL(url);
+        out.toBlob(blob => { const link = document.createElement('a'); link.href = URL.createObjectURL(blob); link.download = 'klassediagram.png'; link.click(); setTimeout(() => URL.revokeObjectURL(link.href), 1000); });
+        setStatus('PNG eksporteret i 3200 × 2000 px.');
+      };
+      image.onerror = () => { URL.revokeObjectURL(url); setStatus('PNG-eksport mislykkedes i denne browser.'); };
+      image.src = url;
+    }
+
+    canvas.addEventListener('pointerdown', event => {
+      const point = pointFromEvent(event);
+      const handle = event.target.closest?.('[data-edge-id][data-point-index]');
+      if (handle) {
+        const edge = edgeById(handle.dataset.edgeId);
+        select('edge', edge.id);
+        state.dragging = {kind: 'handle', edge, index: Number(handle.dataset.pointIndex)};
+        canvas.setPointerCapture(event.pointerId);
+        event.stopPropagation();
+        return;
+      }
+      const nodeEl = event.target.closest?.('[data-node-id]');
+      const edgeEl = event.target.closest?.('[data-edge-id]');
+      if (state.mode === 'class' && !nodeEl && !edgeEl) {
+        addNode(point.x - 120, point.y - 30); setMode('select'); return;
+      }
+      if (nodeEl) {
+        const node = nodeById(nodeEl.dataset.nodeId);
+        if (state.mode === 'relation') {
+          if (!state.relationStart) { state.relationStart = node.id; setStatus(`Kilde valgt: ${node.name}. Klik nu på målklassen.`); }
+          else if (state.relationStart !== node.id) { const edge = addEdge(state.relationStart, node.id, 'association'); state.relationStart = null; setMode('select'); select('edge', edge.id); }
+          return;
+        }
+        select('node', node.id);
+        state.dragging = {kind: 'node', node, dx: point.x - node.x, dy: point.y - node.y};
+        canvas.setPointerCapture(event.pointerId);
+        return;
+      }
+      if (edgeEl) { select('edge', edgeEl.dataset.edgeId); return; }
+      if (state.mode === 'relation') { setStatus('Klik på en klasse som kilde.'); return; }
+      select(null, null);
+    });
+
+    canvas.addEventListener('pointermove', event => {
+      if (!state.dragging) return;
+      const point = pointFromEvent(event);
+      if (state.dragging.kind === 'node') {
+        const node = state.dragging.node;
+        node.x = Math.max(10, snap(point.x - state.dragging.dx));
+        node.y = Math.max(10, snap(point.y - state.dragging.dy));
+        render();
+      } else if (state.dragging.kind === 'handle') {
+        const {edge, index} = state.dragging;
+        const points = edgePoints(edge);
+        edge.manual = true;
+        if (index === 0) edge.startSide = nearestSide(nodeById(edge.from), point);
+        else if (index === points.length - 1) edge.endSide = nearestSide(nodeById(edge.to), point);
+        else { edge.bends[index - 1] = {x: snap(point.x), y: snap(point.y)}; }
+        render();
+      }
+    });
+    canvas.addEventListener('pointerup', () => { state.dragging = null; });
+    canvas.addEventListener('dblclick', event => {
+      const nodeEl = event.target.closest?.('[data-node-id]');
+      if (nodeEl) { select('node', nodeEl.dataset.nodeId); document.getElementById('nodeName')?.focus(); }
+    });
+
+    document.getElementById('selectTool').addEventListener('click', () => setMode('select'));
+    document.getElementById('classTool').addEventListener('click', () => setMode('class'));
+    document.getElementById('relationTool').addEventListener('click', () => setMode('relation'));
+    document.getElementById('newBtn').addEventListener('click', () => { if (confirm('Det nuværende diagram tømmes. Fortsæt?')) blankDiagram(); });
+    document.getElementById('saveJsonBtn').addEventListener('click', saveJson);
+    document.getElementById('exportBtn').addEventListener('click', exportPng);
+    document.getElementById('openJsonBtn').addEventListener('click', () => document.getElementById('jsonFile').click());
+    document.getElementById('openPumlBtn').addEventListener('click', () => document.getElementById('pumlFile').click());
+    document.getElementById('themeBtn').addEventListener('click', () => document.getElementById('themeFile').click());
+    document.getElementById('jsonFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { loadJson(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse JSON: ${error.message}`); } event.target.value = ''; });
+    document.getElementById('pumlFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { parsePuml(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse PlantUML: ${error.message}`); } event.target.value = ''; });
+    document.getElementById('themeFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; state.themeName = file.name; themeBadge.textContent = `Tema: ${state.themeName} · ortho · monochrome`; setStatus(`Temaet ${file.name} er valgt. Editorens monochrome-stil følger thinkjava-indstillingerne.`); event.target.value = ''; });
+    document.addEventListener('keydown', event => {
+      if (event.key === 'Delete' && state.selected) { state.selected.kind === 'node' ? deleteNode(state.selected.id) : deleteEdge(state.selected.id); }
+      if (event.key === 'Escape') setMode('select');
+      if (event.ctrlKey && event.key.toLowerCase() === 's') { event.preventDefault(); exportPng(); }
+      if (event.ctrlKey && event.key.toLowerCase() === 'n') { event.preventDefault(); starter(); }
+    });
+
+    starter();
+  </script>
+</body>
+</html>

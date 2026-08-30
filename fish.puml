@@ -1,0 +1,89 @@
+@startuml
+!include thinkjava.puml
+
+left to right direction
+
+class Flock {
+  -numberOfFishes: int
+  -fishes: list
+  --
+  update(): void
+  draw(): void
+  getFishes(): list
+  __str__(): String
+}
+
+class Fish {
+  screen
+  -position: Vector
+  -velocity: Vector
+  --
+  getPosition(): Vector
+  setPosition(Vector): void
+  getVelocity(): Vector
+  setVelocity(Vector): void
+  update(): void
+  draw(): void
+  __str__(): String
+  separation(list, int, float): Vector
+  alignment(list, int, float): Vector
+  cohesion(list, float): Vector
+  screenConfinement(String): Vector
+  screenConfinementBounce(): Vector
+  screenConfinementNatural(): Vector
+  screenConfinementSquared(): Vector
+  screenConfinementAlternative(): Vector
+}
+
+class Vector {
+  -x: float
+  -y: float
+  --
+  get_x(): float
+  set_x(float): void
+  get_y(): float
+  set_y(float): void
+  __add__(Vector): Vector
+  __sub__(Vector): Vector
+  __mul__(float): Vector
+  __truediv__(float): Vector
+  __str__(): String
+  get_length(): float
+  normalize(): Vector
+  distance(Vector): float
+  dotProduct(Vector): float
+  limit(float): Vector
+}
+
+class BlueFlock {
+  numberOfFishes: int
+  --
+  makeFishes(): void
+}
+
+class OrangeFlock {
+  numberOfFishes: int
+  --
+  makeFishes(): void
+}
+
+class BlueFish {
+  fish_img: Surface
+}
+
+class OrangeFish {
+  fish_img: Surface
+}
+
+Flock o-- Fish
+Fish o-- Vector
+Flock <|-- BlueFlock
+Flock <|-- OrangeFlock
+Fish <|-- BlueFish
+Fish <|-- OrangeFish
+
+' Layout hints for stable alignment in PlantUML renderers.
+BlueFlock -[hidden]right- OrangeFlock
+BlueFish -[hidden]right- OrangeFish
+
+@enduml

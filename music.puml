@@ -1,0 +1,47 @@
+@startuml
+!include thinkjava.puml
+
+top to bottom direction
+
+
+class Instrument {
+  play(): void
+  what(): String
+  adjust(): void
+}
+
+class Wind {
+  play(): void
+  what(): String
+  adjust(): void
+}
+
+class Percussion {
+  play(): void
+  what(): String
+  adjust(): void
+}
+
+class Stringed {
+  play(): void
+  what(): String
+  adjust(): void
+}
+
+class Woodwind {
+  play(): void
+  what(): String
+}
+
+class Brass {
+  play(): void
+  adjust(): void
+}
+
+Instrument <|-- Wind
+Instrument <|-- Percussion
+Instrument <|-- Stringed
+Wind <|-- Woodwind
+Wind <|-- Brass
+
+@enduml

@@ -1,0 +1,151 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1000" viewBox="0 0 1600 1000">
+  <rect width="1600" height="1000" fill="white"/>
+  <!-- Relationship lines: all segments are horizontal or vertical. -->
+    <!-- Flock aggregation Fish -->
+    <line stroke="black" stroke-width="2" x1="390" y1="300" x2="418" y2="300"/>
+    <line stroke="black" stroke-width="2" x1="432" y1="300" x2="580" y2="300"/>
+    <!-- Fish aggregation Vector -->
+    <line stroke="black" stroke-width="2" x1="1040" y1="300" x2="1078" y2="300"/>
+    <line stroke="black" stroke-width="2" x1="1092" y1="300" x2="1190" y2="300"/>
+
+    <!-- Flock inheritance distribution -->
+    <line stroke="black" stroke-width="2" x1="170" y1="760" x2="170" y2="650"/>
+    <line stroke="black" stroke-width="2" x1="170" y1="650" x2="200" y2="650"/>
+    <line stroke="black" stroke-width="2" x1="200" y1="650" x2="200" y2="454"/>
+    <line stroke="black" stroke-width="2" x1="480" y1="760" x2="480" y2="620"/>
+    <line stroke="black" stroke-width="2" x1="480" y1="620" x2="240" y2="620"/>
+    <line stroke="black" stroke-width="2" x1="240" y1="620" x2="240" y2="454"/>
+    <!-- Fish inheritance distribution -->
+    <line stroke="black" stroke-width="2" x1="780" y1="760" x2="780" y2="650"/>
+    <line stroke="black" stroke-width="2" x1="780" y1="650" x2="790" y2="650"/>
+    <line stroke="black" stroke-width="2" x1="790" y1="650" x2="790" y2="584"/>
+    <line stroke="black" stroke-width="2" x1="1130" y1="760" x2="1130" y2="620"/>
+    <line stroke="black" stroke-width="2" x1="1130" y1="620" x2="830" y2="620"/>
+    <line stroke="black" stroke-width="2" x1="830" y1="620" x2="830" y2="584"/>
+
+  <!-- Aggregation diamonds -->
+  <line stroke="black" stroke-width="2" x1="418" y1="300" x2="425" y2="293"/>
+  <line stroke="black" stroke-width="2" x1="425" y1="293" x2="432" y2="300"/>
+  <line stroke="black" stroke-width="2" x1="432" y1="300" x2="425" y2="307"/>
+  <line stroke="black" stroke-width="2" x1="425" y1="307" x2="418" y2="300"/>
+  <line stroke="black" stroke-width="2" x1="1078" y1="300" x2="1085" y2="293"/>
+  <line stroke="black" stroke-width="2" x1="1085" y1="293" x2="1092" y2="300"/>
+  <line stroke="black" stroke-width="2" x1="1092" y1="300" x2="1085" y2="307"/>
+  <line stroke="black" stroke-width="2" x1="1085" y1="307" x2="1078" y2="300"/>
+
+  <!-- Inheritance arrowheads point toward the parent class. -->
+  <line stroke="black" stroke-width="2" x1="200" y1="430" x2="188" y2="454"/>
+  <line stroke="black" stroke-width="2" x1="188" y1="454" x2="212" y2="454"/>
+  <line stroke="black" stroke-width="2" x1="212" y1="454" x2="200" y2="430"/>
+  <line stroke="black" stroke-width="2" x1="240" y1="430" x2="228" y2="454"/>
+  <line stroke="black" stroke-width="2" x1="228" y1="454" x2="252" y2="454"/>
+  <line stroke="black" stroke-width="2" x1="252" y1="454" x2="240" y2="430"/>
+  <line stroke="black" stroke-width="2" x1="790" y1="560" x2="778" y2="584"/>
+  <line stroke="black" stroke-width="2" x1="778" y1="584" x2="802" y2="584"/>
+  <line stroke="black" stroke-width="2" x1="802" y1="584" x2="790" y2="560"/>
+  <line stroke="black" stroke-width="2" x1="830" y1="560" x2="818" y2="584"/>
+  <line stroke="black" stroke-width="2" x1="818" y1="584" x2="842" y2="584"/>
+  <line stroke="black" stroke-width="2" x1="842" y1="584" x2="830" y2="560"/>
+
+  <!-- Flock -->
+    <line stroke="black" stroke-width="2" x1="90" y1="210" x2="390" y2="210"/>
+    <line stroke="black" stroke-width="2" x1="390" y1="210" x2="390" y2="430"/>
+    <line stroke="black" stroke-width="2" x1="390" y1="430" x2="90" y2="430"/>
+    <line stroke="black" stroke-width="2" x1="90" y1="430" x2="90" y2="210"/>
+    <line stroke="black" stroke-width="2" x1="90" y1="254" x2="390" y2="254"/>
+    <line stroke="black" stroke-width="2" x1="90" y1="320" x2="390" y2="320"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="240" y="239" text-anchor="middle">Flock</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="282">-numberOfFishes: int</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="306">-fishes: list</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="347">update(): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="371">draw(): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="395">getFishes(): list</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="102" y="419">__str__(): String</text>
+
+  <!-- Fish -->
+    <line stroke="black" stroke-width="2" x1="580" y1="40" x2="1040" y2="40"/>
+    <line stroke="black" stroke-width="2" x1="1040" y1="40" x2="1040" y2="560"/>
+    <line stroke="black" stroke-width="2" x1="1040" y1="560" x2="580" y2="560"/>
+    <line stroke="black" stroke-width="2" x1="580" y1="560" x2="580" y2="40"/>
+    <line stroke="black" stroke-width="2" x1="580" y1="84" x2="1040" y2="84"/>
+    <line stroke="black" stroke-width="2" x1="580" y1="150" x2="1040" y2="150"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="810" y="69" text-anchor="middle">Fish</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="112">screen</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="136">-position: Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="177">-velocity: Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="201">getPosition(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="225">setPosition(Vector): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="249">getVelocity(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="273">setVelocity(Vector): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="297">update(): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="321">draw(): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="345">__str__(): String</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="369">separation(list, int, float): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="393">alignment(list, int, float): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="417">cohesion(list, float): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="441">screenConfinement(String): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="465">screenConfinementBounce(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="489">screenConfinementNatural(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="513">screenConfinementSquared(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="592" y="537">screenConfinementAlternative(): Vector</text>
+
+  <!-- Vector -->
+    <line stroke="black" stroke-width="2" x1="1190" y1="100" x2="1540" y2="100"/>
+    <line stroke="black" stroke-width="2" x1="1540" y1="100" x2="1540" y2="568"/>
+    <line stroke="black" stroke-width="2" x1="1540" y1="568" x2="1190" y2="568"/>
+    <line stroke="black" stroke-width="2" x1="1190" y1="568" x2="1190" y2="100"/>
+    <line stroke="black" stroke-width="2" x1="1190" y1="144" x2="1540" y2="144"/>
+    <line stroke="black" stroke-width="2" x1="1190" y1="210" x2="1540" y2="210"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="1365" y="129" text-anchor="middle">Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="172">-x: float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="196">-y: float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="237">get_x(): float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="261">set_x(float): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="285">get_y(): float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="309">set_y(float): void</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="333">__add__(Vector): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="357">__sub__(Vector): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="381">__mul__(float): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="405">__truediv__(float): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="429">__str__(): String</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="453">get_length(): float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="477">normalize(): Vector</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="501">distance(Vector): float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="525">dotProduct(Vector): float</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1202" y="549">limit(float): Vector</text>
+
+  <!-- Concrete subclasses -->
+    <line stroke="black" stroke-width="2" x1="40" y1="760" x2="300" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="300" y1="760" x2="300" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="300" y1="890" x2="40" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="40" y1="890" x2="40" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="40" y1="804" x2="300" y2="804"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="170" y="789" text-anchor="middle">BlueFlock</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="52" y="832">numberOfFishes: int</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="52" y="874">makeFishes(): void</text>
+
+    <line stroke="black" stroke-width="2" x1="350" y1="760" x2="610" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="610" y1="760" x2="610" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="610" y1="890" x2="350" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="350" y1="890" x2="350" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="350" y1="804" x2="610" y2="804"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="480" y="789" text-anchor="middle">OrangeFlock</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="362" y="832">numberOfFishes: int</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="362" y="874">makeFishes(): void</text>
+
+    <line stroke="black" stroke-width="2" x1="650" y1="760" x2="910" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="910" y1="760" x2="910" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="910" y1="890" x2="650" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="650" y1="890" x2="650" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="650" y1="804" x2="910" y2="804"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="780" y="789" text-anchor="middle">BlueFish</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="662" y="848">fish_img: Surface</text>
+
+    <line stroke="black" stroke-width="2" x1="1000" y1="760" x2="1260" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="1260" y1="760" x2="1260" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="1260" y1="890" x2="1000" y2="890"/>
+    <line stroke="black" stroke-width="2" x1="1000" y1="890" x2="1000" y2="760"/>
+    <line stroke="black" stroke-width="2" x1="1000" y1="804" x2="1260" y2="804"/>
+    <text fill="black" font-family="Arial" font-size="21" font-weight="bold" x="1130" y="789" text-anchor="middle">OrangeFish</text>
+    <text fill="black" font-family="DejaVu Sans Mono" font-size="18" x="1012" y="848">fish_img: Surface</text>
+</svg>
