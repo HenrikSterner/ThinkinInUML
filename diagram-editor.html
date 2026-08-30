@@ -90,8 +90,11 @@
     .status { min-height: 34px; padding: 8px 12px; border-top: 1px solid #ccc; background: #fafafa; color: #555; font-size: 12px; }
     .node-title { font-family: Arial, sans-serif; font-weight: bold; }
     .node-body { font-family: Consolas, 'Courier New', monospace; }
+    .flow .flow-shape { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; }
+    .flow .flow-label { fill: var(--ink); font: 13px Arial, sans-serif; }
     .node.interface .node-title, .node.abstract .node-title { font-style: italic; }
-    .node.selected rect { stroke: var(--accent); stroke-width: 2.5; }
+    .node.selected rect, .node.selected ellipse, .node.selected polygon { stroke: var(--accent); stroke-width: 2.5; }
+    .node.selected .flow-shape { stroke: var(--accent); stroke-width: 2.5; }
     .edge-hit { fill: none; stroke: transparent; stroke-width: 14; cursor: pointer; }
     .edge-line { fill: none; stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; stroke-linecap: square; pointer-events: none; }
     .edge.selected .edge-line { stroke: var(--accent); stroke-width: 2.5; }
@@ -99,6 +102,21 @@
     .handle.endpoint { fill: #dbeafe; }
     .relation-label { font: 13px Arial, sans-serif; fill: var(--ink); paint-order: stroke; stroke: white; stroke-width: 5px; stroke-linejoin: round; }
     .selection-note { color: var(--accent); font-size: 12px; margin: 0 0 10px; }
+    .python-dialog { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 20px; background: rgb(0 0 0 / 35%); }
+    .python-dialog[hidden] { display: none; }
+    .python-dialog-card { width: min(760px, 100%); max-height: 90vh; overflow: auto; padding: 20px; background: white; border: 1px solid #999; box-shadow: 0 5px 25px rgb(0 0 0 / 25%); }
+    .python-dialog-card h2 { margin: 0 0 6px; font-size: 18px; }
+    .code-editor { position: relative; height: 360px; border: 1px solid #aaa; border-radius: 3px; background: #fbfbfb; overflow: hidden; }
+    .code-editor pre, .code-editor textarea { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 9px; border: 0; font-family: Consolas, 'Courier New', monospace; font-size: 13px; line-height: 1.45; tab-size: 4; white-space: pre-wrap; overflow: auto; overflow-wrap: break-word; }
+    .code-editor pre { pointer-events: none; color: #222; }
+    .code-editor textarea { resize: none; color: transparent; caret-color: #111; background: transparent; outline: none; }
+    .code-editor textarea::selection { color: transparent; background: rgb(37 99 235 / 25%); }
+    .code-editor .py-keyword { color: #7c3aed; font-weight: bold; }
+    .code-editor .py-string { color: #047857; }
+    .code-editor .py-comment { color: #6b7280; font-style: italic; }
+    .code-editor .py-number { color: #b45309; }
+    .code-editor .py-builtin { color: #0369a1; }
+    .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
   </style>
 </head>
 <body>
@@ -108,7 +126,9 @@
       <button id="newBtn" title="Nyt diagram (Ctrl+N)">Nyt</button>
       <button id="openJsonBtn">Åbn JSON</button>
       <button id="saveJsonBtn">Gem JSON</button>
+      <button id="savePumlBtn">Gem PUML</button>
       <button id="openPumlBtn">Åbn .puml</button>
+      <button id="pythonBtn">Python → diagram</button>
       <button id="themeBtn" title="Vælg thinkjava.puml eller en anden tema-fil">Brug thinkjava.puml</button>
       <div class="toolbar-separator"></div>
       <button id="exportBtn" title="Eksportér som PNG (Ctrl+S)">Gem som PNG</button>
@@ -126,12 +146,14 @@
             <button id="relationTool">+ Pil</button>
           </div>
           <p class="help">
+            Når en klasse er valgt, flytter piletasterne den 1 pixel ad gangen. Hold <kbd>Shift</kbd> nede for 10 pixels.<br><br>
             Træk klasserne med musen. Vælg <b>+ Pil</b>, klik på en kildeklasse og derefter på målklassen.<br><br>
             Valgte pile kan justeres ved at trække de blå håndtag. Brug <kbd>Delete</kbd> til at slette det valgte.
           </p>
         </div>
         <div class="section">
           <h2>Relationstyper</h2>
+          <p class="muted">Alle pile holdes rette med højst 2 knæk.</p>
           <p class="muted">Arv bruger åben trekant. Aggregation bruger diamant. Alle nye pile får et ortogonalt layout.</p>
         </div>
         <div class="section">
@@ -146,18 +168,6 @@
             <pattern id="grid" width="20" height="20" patternUnits="userSpaceOnUse">
               <path d="M 20 0 L 0 0 0 20" fill="none" stroke="#f0f0f0" stroke-width="1"/>
             </pattern>
-            <marker id="inheritanceMarker" markerWidth="16" markerHeight="16" refX="14" refY="8" orient="auto">
-              <path d="M 1 1 L 14 8 L 1 15 Z" fill="white" stroke="black" stroke-width="1.2"/>
-            </marker>
-            <marker id="dependencyMarker" markerWidth="13" markerHeight="13" refX="11" refY="6.5" orient="auto">
-              <path d="M 1 1 L 11 6.5 L 1 12" fill="none" stroke="black" stroke-width="1.2"/>
-            </marker>
-            <marker id="aggregationMarker" markerWidth="17" markerHeight="17" refX="8" refY="8" orient="auto-start-reverse">
-              <path d="M 1 8 L 8 1 L 15 8 L 8 15 Z" fill="white" stroke="black" stroke-width="1.2"/>
-            </marker>
-            <marker id="compositionMarker" markerWidth="17" markerHeight="17" refX="8" refY="8" orient="auto-start-reverse">
-              <path d="M 1 8 L 8 1 L 15 8 L 8 15 Z" fill="black" stroke="black" stroke-width="1.2"/>
-            </marker>
           </defs>
           <rect width="1600" height="1000" fill="url(#grid)"/>
           <g id="edges"></g>
@@ -171,6 +181,38 @@
       </aside>
     </div>
     <div class="status" id="status">Klar. Åbn filen direkte i browseren for at bruge editoren.</div>
+  </div>
+
+  <div id="pythonDialog" class="python-dialog" hidden>
+    <div class="python-dialog-card" role="dialog" aria-modal="true" aria-labelledby="pythonDialogTitle">
+      <h2 id="pythonDialogTitle">Python til diagram</h2>
+      <p class="muted">Indsæt Python-kode. Vælg automatisk for at lave et klassediagram, hvis koden indeholder klasser, ellers et flowdiagram.</p>
+      <div class="field">
+        <label for="pythonDiagramType">Diagramtype</label>
+        <select id="pythonDiagramType">
+          <option value="auto">Automatisk</option>
+          <option value="class">Klassediagram</option>
+          <option value="flow">Flowdiagram</option>
+        </select>
+      </div>
+      <div class="field">
+        <label for="pythonSource">Python-kode</label>
+        <div class="code-editor" id="pythonCodeEditor">
+          <pre id="pythonHighlight" aria-hidden="true"><code></code></pre>
+          <textarea id="pythonSource" spellcheck="false" placeholder="class Animal:
+    def speak(self):
+        return '...'
+
+if ready:
+    run()"></textarea>
+        </div>
+      </div>
+      <div id="pythonError" class="selection-note" hidden></div>
+      <div class="dialog-actions">
+        <button id="cancelPythonBtn">Annuller</button>
+        <button id="generatePythonBtn" class="active">Generér diagram</button>
+      </div>
+    </div>
   </div>
 
   <input id="jsonFile" type="file" accept=".json,application/json" hidden>
@@ -265,27 +307,49 @@
     function defaultSides(source, target) {
       const sx = source.x + source.w / 2, sy = source.y + nodeHeight(source) / 2;
       const tx = target.x + target.w / 2, ty = target.y + nodeHeight(target) / 2;
+      // When the side midpoints are aligned, prefer a single straight line.
+      if (sy === ty && sx !== tx) return tx >= sx ? ['right', 'left'] : ['left', 'right'];
+      if (sx === tx && sy !== ty) return ty >= sy ? ['bottom', 'top'] : ['top', 'bottom'];
       if (Math.abs(tx - sx) >= Math.abs(ty - sy)) return tx >= sx ? ['right', 'left'] : ['left', 'right'];
       return ty >= sy ? ['bottom', 'top'] : ['top', 'bottom'];
     }
 
-    function autoBends(edge) {
+    function isHorizontalSide(side) { return side === 'left' || side === 'right'; }
+
+    function orthogonalBends(edge, requested = []) {
       const source = nodeById(edge.from), target = nodeById(edge.to);
       if (!source || !target) return [];
       const s = sidePoint(source, edge.startSide), t = sidePoint(target, edge.endSide);
       if (s.x === t.x || s.y === t.y) return [];
-      if (edge.startSide === 'left' || edge.startSide === 'right') {
-        const mid = snap((s.x + t.x) / 2);
-        return [{x: mid, y: s.y}, {x: mid, y: t.y}];
+
+      const startHorizontal = isHorizontalSide(edge.startSide);
+      const endHorizontal = isHorizontalSide(edge.endSide);
+      const points = Array.isArray(requested) ? requested.slice(0, 2) : [];
+
+      // Same-direction endpoints need two knæk. Keep the dragged/imported
+      // coordinate, but constrain the other coordinate to an endpoint.
+      if (startHorizontal === endHorizontal) {
+        if (startHorizontal) {
+          const x = snap(Number.isFinite(Number(points[0]?.x)) ? Number(points[0].x) : (s.x + t.x) / 2);
+          return [{x, y: s.y}, {x, y: t.y}];
+        }
+        const y = snap(Number.isFinite(Number(points[0]?.y)) ? Number(points[0].y) : (s.y + t.y) / 2);
+        return [{x: s.x, y}, {x: t.x, y}];
       }
-      const mid = snap((s.y + t.y) / 2);
-      return [{x: s.x, y: mid}, {x: t.x, y: mid}];
+
+      // Mixed endpoint directions only need one orthogonal knæk.
+      return startHorizontal ? [{x: t.x, y: s.y}] : [{x: s.x, y: t.y}];
+    }
+
+    function autoBends(edge) {
+      return orthogonalBends(edge);
     }
 
     function edgePoints(edge) {
       const source = nodeById(edge.from), target = nodeById(edge.to);
       if (!source || !target) return [];
-      if (!edge.manual) edge.bends = autoBends(edge);
+      if (!edge.manual) [edge.startSide, edge.endSide] = defaultSides(source, target);
+      edge.bends = orthogonalBends(edge, edge.manual ? edge.bends : []);
       return [sidePoint(source, edge.startSide), ...(edge.bends || []), sidePoint(target, edge.endSide)];
     }
 
@@ -294,15 +358,45 @@
     }
 
     function markerFor(type) {
-      if (type === 'inheritance') return 'url(#inheritanceMarker)';
-      if (type === 'dependency') return 'url(#dependencyMarker)';
+      if (type === 'inheritance' || type === 'dependency') return type;
       return null;
     }
 
     function startMarkerFor(type) {
-      if (type === 'aggregation') return 'url(#aggregationMarker)';
-      if (type === 'composition') return 'url(#compositionMarker)';
+      if (type === 'aggregation' || type === 'composition') return type;
       return null;
+    }
+
+    function flowTextLines(value, maxLength = 34) {
+      const words = String(value || '').split(/\s+/).filter(Boolean);
+      const result = [], max = Math.max(12, maxLength);
+      let current = '';
+      words.forEach(word => {
+        if (current && `${current} ${word}`.length > max) { result.push(current); current = word; }
+        else current = current ? `${current} ${word}` : word;
+      });
+      if (current) result.push(current);
+      return result.length ? result.slice(0, 3) : [''];
+    }
+
+    function renderFlowNode(group, node, h) {
+      const x = node.x, y = node.y, w = node.w;
+      const shape = node.shape || 'process';
+      const shapeAttrs = {class: 'flow-shape'};
+      if (shape === 'terminator') {
+        group.append(el('ellipse', {...shapeAttrs, cx: x + w / 2, cy: y + h / 2, rx: w / 2, ry: h / 2}));
+      } else if (shape === 'decision') {
+        group.append(el('polygon', {...shapeAttrs, points: `${x + w / 2},${y} ${x + w},${y + h / 2} ${x + w / 2},${y + h} ${x},${y + h / 2}`}));
+      } else if (shape === 'io') {
+        const skew = Math.min(30, w / 6);
+        group.append(el('polygon', {...shapeAttrs, points: `${x + skew},${y} ${x + w},${y} ${x + w - skew},${y + h} ${x},${y + h}`}));
+      } else {
+        group.append(el('rect', {...shapeAttrs, x, y, width: w, height: h, rx: 2, ry: 2}));
+      }
+      const textLines = flowTextLines(node.name);
+      const lineHeight = 17;
+      const firstY = y + h / 2 - ((textLines.length - 1) * lineHeight) / 2 + 5;
+      textLines.forEach((text, index) => group.append(el('text', {x: x + w / 2, y: firstY + index * lineHeight, 'text-anchor': 'middle', class: 'flow-label'}, text)));
     }
 
     function render() {
@@ -314,13 +408,13 @@
         const points = edgePoints(edge);
         if (points.length < 2) continue;
         const group = el('g', {'data-edge-id': edge.id, class: `edge${state.selected?.kind === 'edge' && state.selected.id === edge.id ? ' selected' : ''}`});
-        const hit = el('path', {d: pathData(points), class: 'edge-hit', 'data-edge-id': edge.id});
-        const lineAttrs = {d: pathData(points), class: 'edge-line', 'data-edge-id': edge.id};
+        const hit = el('path', {d: pathData(points), class: 'edge-hit', fill: 'none', stroke: 'transparent', 'stroke-width': 14, 'data-edge-id': edge.id});
+        const lineAttrs = {d: pathData(points), class: 'edge-line', fill: 'none', 'data-edge-id': edge.id};
         const endMarker = markerFor(edge.type);
         const startMarker = startMarkerFor(edge.type);
-        if (endMarker) lineAttrs['marker-end'] = endMarker;
-        if (startMarker) lineAttrs['marker-start'] = startMarker;
         group.append(hit, el('path', lineAttrs));
+        if (endMarker) group.append(exportMarker(edge.type, points[points.length - 1], unitDirection(points[points.length - 2], points[points.length - 1])));
+        if (startMarker) group.append(exportMarker(edge.type, points[0], unitDirection(points[1], points[0])));
         if (edge.label) {
           const mid = points[Math.floor(points.length / 2)];
           group.append(el('text', {x: mid.x + 7, y: mid.y - 7, class: 'relation-label'}, edge.label));
@@ -340,23 +434,37 @@
         const attrs = lines(node.attributes);
         const methods = lines(node.methods);
         const sections = [attrs, methods].filter(section => section.length);
-        const group = el('g', {class: `node ${node.type}${state.selected?.kind === 'node' && state.selected.id === node.id ? ' selected' : ''}`, 'data-node-id': node.id});
-        group.append(el('rect', {x: node.x, y: node.y, width: node.w, height: h, fill: 'white', stroke: 'black', 'stroke-width': 1.5}));
-        group.append(el('line', {x1: node.x, y1: node.y + 40, x2: node.x + node.w, y2: node.y + 40, stroke: 'black', 'stroke-width': 1.5}));
-        group.append(el('text', {x: node.x + node.w / 2, y: node.y + 27, 'text-anchor': 'middle', class: 'node-title'}, node.name || 'Unnamed'));
-        let cursor = node.y + 40;
-        sections.forEach((section, sectionIndex) => {
-          if (sectionIndex > 0) {
-            group.append(el('line', {x1: node.x, y1: cursor, x2: node.x + node.w, y2: cursor, stroke: 'black', 'stroke-width': 1.5}));
-          }
-          section.forEach((line, i) => group.append(el('text', {x: node.x + 12, y: cursor + 22 + i * 22, class: 'node-body', 'font-size': 14}, line)));
-          cursor += 26 + section.length * 22;
-        });
+        const group = el('g', {class: `node ${node.type}${node.diagramKind ? ` ${node.diagramKind}` : ''}${state.selected?.kind === 'node' && state.selected.id === node.id ? ' selected' : ''}`, 'data-node-id': node.id});
+        if (node.diagramKind === 'flow') {
+          renderFlowNode(group, node, h);
+        } else {
+          group.append(el('rect', {x: node.x, y: node.y, width: node.w, height: h, fill: 'white', stroke: 'black', 'stroke-width': 1.5}));
+          group.append(el('line', {x1: node.x, y1: node.y + 40, x2: node.x + node.w, y2: node.y + 40, stroke: 'black', 'stroke-width': 1.5}));
+          group.append(el('text', {x: node.x + node.w / 2, y: node.y + 27, 'text-anchor': 'middle', class: 'node-title'}, node.name || 'Unnamed'));
+          let cursor = node.y + 40;
+          sections.forEach((section, sectionIndex) => {
+            if (sectionIndex > 0) {
+              group.append(el('line', {x1: node.x, y1: cursor, x2: node.x + node.w, y2: cursor, stroke: 'black', 'stroke-width': 1.5}));
+            }
+            section.forEach((line, i) => group.append(el('text', {x: node.x + 12, y: cursor + 22 + i * 22, class: 'node-body', 'font-size': 14}, line)));
+            cursor += 26 + section.length * 22;
+          });
+        }
         nodesLayer.append(group);
       }
     }
 
     function setStatus(message) { statusEl.textContent = message; }
+
+    function moveSelectedNode(dx, dy) {
+      if (state.selected?.kind !== 'node') return false;
+      const node = nodeById(state.selected.id);
+      if (!node) return false;
+      node.x = Math.max(10, Number(node.x) + dx);
+      node.y = Math.max(10, Number(node.y) + dy);
+      render();
+      return true;
+    }
 
     function select(kind, id) {
       state.selected = kind && id ? {kind, id} : null;
@@ -414,6 +522,7 @@
           <button id="addBendBtn">Tilføj knæk</button>
           <button id="resetEdgeBtn">Nulstil rute</button>
           <button id="deleteEdgeBtn" class="danger">Slet pil</button>
+          <p class="muted">Ruten er altid ortogonal og kan højst have 2 knæk.</p>
           <p class="muted">Træk de blå håndtag på lærredet for at flytte pilepunkter. Endepunkterne vælger automatisk nærmeste side.</p>
         </div>`;
       document.getElementById('edgeType').value = edge.type;
@@ -431,9 +540,17 @@
     function addBend(edge) {
       const source = nodeById(edge.from), target = nodeById(edge.to);
       if (!source || !target) return;
+      const current = edgePoints(edge);
+      if (current.length - 2 >= 2) {
+        setStatus('En relation kan højst have 2 knæk.');
+        return;
+      }
       const s = sidePoint(source, edge.startSide), t = sidePoint(target, edge.endSide);
       edge.manual = true;
-      edge.bends = s.x !== t.x && s.y !== t.y ? [{x: snap(s.x), y: snap(t.y)}] : [{x: snap((s.x + t.x) / 2), y: snap((s.y + t.y) / 2)}];
+      edge.bends = s.x !== t.x && s.y !== t.y
+        ? [{x: snap((s.x + t.x) / 2), y: snap((s.y + t.y) / 2)}]
+        : [];
+      edge.bends = orthogonalBends(edge, edge.bends);
       render();
       setStatus('Knæk tilføjet. Træk det blå håndtag for at justere pilen.');
     }
@@ -509,6 +626,58 @@
       return JSON.stringify({version: state.version, themeName: state.themeName, nextNode: state.nextNode, nextEdge: state.nextEdge, nodes: state.nodes, edges: state.edges}, null, 2);
     }
 
+    function pumlQuote(value) {
+      return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
+    }
+
+    function pumlNodeRef(node) { return node ? node.id : ''; }
+
+    function pumlClassDeclaration(node) {
+      const keyword = node.type === 'interface' ? 'interface' : node.type === 'abstract' ? 'abstract class' : 'class';
+      const members = [];
+      lines(node.attributes).forEach(line => members.push(`  ${line}`));
+      if (members.length && lines(node.methods).length) members.push('  --');
+      lines(node.methods).forEach(line => members.push(`  ${line}`));
+      const body = members.length ? ` {\n${members.join('\n')}\n}` : '';
+      return `${keyword} "${pumlQuote(node.name || 'Unnamed')}" as ${pumlNodeRef(node)}${body}`;
+    }
+
+    function pumlFlowDeclaration(node) {
+      const shape = node.shape ? `\\n[${node.shape}]` : '';
+      return `rectangle "${pumlQuote(node.name || 'Unnamed')}${shape}" as ${pumlNodeRef(node)}`;
+    }
+
+    function serializePuml() {
+      const output = [
+        '@startuml',
+        "' Generated by ThinkJava diagram-editor",
+        'skinparam monochrome true',
+        'skinparam shadowing false',
+        'skinparam roundCorner 0',
+        'skinparam dpi 150',
+        'skinparam linetype ortho',
+        'skinparam backgroundColor white',
+        'skinparam defaultFontName Consolas',
+        'skinparam classAttributeIconSize 0',
+        'skinparam classIconSize 0',
+        'skinparam classStereotypeIconSize 0',
+        'skinparam ArrowColor black',
+        'skinparam ArrowThickness 1',
+        ''
+      ];
+      const isFlow = state.nodes.some(node => node.diagramKind === 'flow');
+      state.nodes.forEach(node => output.push(isFlow ? pumlFlowDeclaration(node) : pumlClassDeclaration(node)));
+      if (state.nodes.length && state.edges.length) output.push('');
+      const relationTokens = {association: '--', aggregation: 'o--', composition: '*--', inheritance: '<|--', dependency: '..>'};
+      state.edges.forEach(edge => {
+        const token = relationTokens[edge.type] || '--';
+        const label = edge.label ? ` : ${pumlQuote(edge.label)}` : '';
+        output.push(`${pumlNodeRef(nodeById(edge.from))} ${token} ${pumlNodeRef(nodeById(edge.to))}${label}`);
+      });
+      output.push('@enduml');
+      return output.join('\n');
+    }
+
     function download(name, content, type) {
       const blob = new Blob([content], {type});
       const url = URL.createObjectURL(blob);
@@ -518,6 +687,8 @@
     }
 
     function saveJson() { download('klassediagram.json', serialize(), 'application/json'); setStatus('Diagram gemt som JSON.'); }
+
+    function savePuml() { download('klassediagram.puml', serializePuml(), 'text/plain;charset=utf-8'); setStatus('Diagram gemt som PUML.'); }
 
     function loadJson(text) {
       const data = JSON.parse(text);
@@ -537,7 +708,7 @@
       if (token.includes('<|')) return 'inheritance';
       if (token.includes('*')) return 'composition';
       if (token.includes('o')) return 'aggregation';
-      if (token.includes('..')) return 'dependency';
+      if (token.includes('..') || token === '-->') return 'dependency';
       return 'association';
     }
 
@@ -549,12 +720,21 @@
       for (let raw of linesIn) {
         const line = raw.trim();
         if (!line || line.startsWith("'") || line.startsWith('!')) continue;
-        const declaration = line.match(/^(abstract\s+class|class|interface)\s+([\w.$-]+)/i);
+        const declaration = line.match(/^(abstract\s+class|class|interface)\s+(?:"([^"]+)"\s+as\s+([\w.$-]+)|([\w.$-]+))/i);
         if (declaration) {
           const type = declaration[1].toLowerCase().startsWith('interface') ? 'interface' : declaration[1].toLowerCase().startsWith('abstract') ? 'abstract' : 'class';
-          current = {name: declaration[2], type, attributes: [], methods: []};
+          const name = declaration[2] || declaration[4], alias = declaration[3] || name;
+          current = {name, alias, type, attributes: [], methods: []};
           byName[current.name] = current; found.push(current); separator = false;
+          byName[alias] = current;
           if (!line.includes('{')) { current = null; separator = false; }
+          continue;
+        }
+        const flowDeclaration = line.match(/^(rectangle|usecase|circle)\s+"([^"]+)"\s+as\s+([\w.$-]+)/i);
+        if (flowDeclaration) {
+          const shapeMatch = flowDeclaration[2].match(/\\n\[(\w+)\]$/);
+          const item = {name: flowDeclaration[2].replace(/\\n\[\w+\]$/, ''), alias: flowDeclaration[3], type: 'class', diagramKind: 'flow', shape: shapeMatch ? shapeMatch[1] : 'process', attributes: [], methods: []};
+          found.push(item); byName[item.name] = item; byName[item.alias] = item;
           continue;
         }
         if (current && line === '}') { current = null; separator = false; continue; }
@@ -576,21 +756,278 @@
       found.forEach((item, index) => {
         const col = index % cols, row = Math.floor(index / cols);
         byName[item.name].id = `n${state.nextNode++}`;
-        state.nodes.push({id: byName[item.name].id, name: item.name, type: item.type, attributes: item.attributes.join('\n'), methods: item.methods.join('\n'), x: 80 + col * 370, y: 70 + row * 330, w: 270});
+        state.nodes.push({id: byName[item.name].id, name: item.name, type: item.type, diagramKind: item.diagramKind || '', shape: item.shape || '', attributes: item.attributes.join('\n'), methods: item.methods.join('\n'), x: 80 + col * 370, y: 70 + row * 330, w: 270});
       });
       relations.forEach(([from, to, type]) => addEdge(byName[from].id, byName[to].id, type));
       state.selected = null; renderInspector(); render(); setMode('select');
       setStatus(`${found.length} klasser og ${relations.length} relationer indlæst fra PlantUML.`);
     }
 
+    function pythonIndent(line) {
+      return (line.match(/^\s*/) || [''])[0].replace(/\t/g, '    ').length;
+    }
+
+    function pythonClassData(source) {
+      const sourceLines = String(source || '').replace(/\r/g, '').split('\n');
+      const starts = [];
+      sourceLines.forEach((raw, index) => {
+        const match = raw.match(/^(\s*)class\s+([A-Za-z_]\w*)(?:\s*\(([^)]*)\))?\s*:/);
+        if (match) starts.push({index, indent: pythonIndent(raw), name: match[2], bases: (match[3] || '').split(',').map(base => base.trim()).filter(Boolean)});
+      });
+
+      const classes = starts.map((item, classIndex) => {
+        let end = sourceLines.length;
+        for (let index = item.index + 1; index < sourceLines.length; index += 1) {
+          if (sourceLines[index].trim() && pythonIndent(sourceLines[index]) <= item.indent) { end = index; break; }
+        }
+        const body = sourceLines.slice(item.index + 1, end);
+        const attributes = new Set();
+        const methods = [];
+        body.forEach(raw => {
+          const text = raw.trim();
+          const indent = pythonIndent(raw);
+          if (indent === item.indent + 4) {
+            const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::|=)/);
+            if (attribute && !/^(if|for|while|try|with|return|raise|assert)\b/.test(attribute[1])) attributes.add(attribute[1]);
+            const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/);
+            if (method) methods.push(`${method[1]}(${method[2].replace(/\b(self|cls)\s*,?\s*/g, '').trim()})`);
+          }
+          const selfAttribute = text.match(/\bself\.([A-Za-z_]\w*)\s*(?::|=)/);
+          if (selfAttribute) attributes.add(selfAttribute[1]);
+        });
+        return {...item, body: body.join('\n'), attributes: [...attributes], methods, classIndex};
+      });
+
+      if (!classes.length) {
+        const attributes = [], methods = [];
+        sourceLines.forEach(raw => {
+          const text = raw.trim();
+          if (pythonIndent(raw) !== 0) return;
+          const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::|=)/);
+          const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/);
+          if (attribute) attributes.push(attribute[1]);
+          if (method) methods.push(`${method[1]}(${method[2]})`);
+        });
+        classes.push({name: 'PythonModule', bases: [], body: source, attributes: [...new Set(attributes)], methods});
+      }
+      return classes;
+    }
+
+    function generatedNode(id, name, x, y, values = {}) {
+      return {id, name, type: values.type || 'class', diagramKind: values.diagramKind || '', shape: values.shape || '', attributes: values.attributes || '', methods: values.methods || '', x, y, w: values.w || 300};
+    }
+
+    function generatedEdge(nodes, id, from, to, type = 'dependency', label = '') {
+      const source = nodes.find(node => node.id === from), target = nodes.find(node => node.id === to);
+      const [startSide, endSide] = defaultSides(source, target);
+      return {id, from, to, type, label, startSide, endSide, bends: [], manual: false};
+    }
+
+    function installGeneratedDiagram(nodes, edges, message) {
+      state.nodes = nodes;
+      state.edges = edges;
+      state.nextNode = nodes.length + 1;
+      state.nextEdge = edges.length + 1;
+      state.selected = null;
+      state.dragging = null;
+      renderInspector();
+      render();
+      setMode('select');
+      setStatus(message);
+    }
+
+    function generatePythonClassDiagram(source) {
+      const classes = pythonClassData(source);
+      const columns = Math.max(1, Math.ceil(Math.sqrt(classes.length)));
+      const nodes = classes.map((item, index) => {
+        const column = index % columns, row = Math.floor(index / columns);
+        return generatedNode(`n${index + 1}`, item.name, 70 + column * 390, 60 + row * 310, {
+          attributes: item.attributes.join('\n'),
+          methods: item.methods.join('\n'),
+          w: 300
+        });
+      });
+      const edges = [];
+      let nextEdge = 1;
+      const byName = new Map(classes.map((item, index) => [item.name, nodes[index]]));
+      classes.forEach((item, index) => {
+        const child = nodes[index];
+        item.bases.forEach(base => {
+          const baseName = base.split('.').pop().trim();
+          const parent = byName.get(baseName);
+          if (parent) edges.push(generatedEdge(nodes, `e${nextEdge++}`, child.id, parent.id, 'inheritance'));
+        });
+        classes.forEach((other, otherIndex) => {
+          if (index === otherIndex || item.bases.some(base => base.split('.').pop().trim() === other.name)) return;
+          if (new RegExp(`\\b${other.name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`).test(item.body)) {
+            edges.push(generatedEdge(nodes, `e${nextEdge++}`, child.id, nodes[otherIndex].id, 'association'));
+          }
+        });
+      });
+      return {nodes, edges, message: `Klassediagram genereret: ${classes.length} klasse(r) og ${edges.length} relation(er).`};
+    }
+
+    function pythonFlowItems(source) {
+      const items = [];
+      String(source || '').replace(/\r/g, '').split('\n').forEach((raw, index) => {
+        const text = raw.trim();
+        if (!text || text.startsWith('#') || text.startsWith('@') || /^(from\s+|import\s+)/.test(text) || /^class\s+/.test(text)) return;
+        const clean = text.replace(/\s+#.*$/, '').replace(/:$/, '').trim();
+        if (!clean || /^(pass|\.\.\.)$/.test(clean)) return;
+        const kindMatch = clean.match(/^(if|elif|else|for|while|try|except|finally|with|def|return|raise|break|continue|match|case)\b/);
+        items.push({line: index + 1, indent: pythonIndent(raw), text: clean, kind: kindMatch ? kindMatch[1] : 'statement'});
+      });
+      return items;
+    }
+
+    function flowLabel(item) {
+      if (item.kind === 'def') return item.text.replace(/^def\s+/, 'funktion ');
+      return item.text.length > 48 ? `${item.text.slice(0, 45)}...` : item.text;
+    }
+
+    function flowShape(item) {
+      if (item.kind === 'start' || item.kind === 'end') return 'terminator';
+      if (['if', 'elif', 'for', 'while', 'try', 'except', 'match', 'case'].includes(item.kind)) return 'decision';
+      if (/\b(input|print)\s*\(/.test(item.text)) return 'io';
+      return 'process';
+    }
+
+    function generatePythonFlowDiagram(source) {
+      const items = pythonFlowItems(source);
+      if (!items.length) throw new Error('Ingen Python-instruktioner kunne findes.');
+      const allItems = [{line: 0, indent: 0, text: 'Start', kind: 'start'}, ...items, {line: 0, indent: 0, text: 'Slut', kind: 'end'}];
+      const rowsPerColumn = 6;
+      const nodes = allItems.map((item, index) => {
+        const column = Math.floor(index / rowsPerColumn), row = index % rowsPerColumn;
+        return generatedNode(`n${index + 1}`, item.kind === 'start' || item.kind === 'end' ? item.text : `${flowLabel(item)}  [linje ${item.line}]`, 300 + column * 460, 50 + row * 145, {w: 360, diagramKind: 'flow', shape: flowShape(item)});
+      });
+      const edges = [], edgeKeys = new Set();
+      let nextEdge = 1;
+      const addFlowEdge = (fromIndex, toIndex, label = '') => {
+        if (toIndex < 0 || toIndex >= nodes.length || fromIndex === toIndex) return;
+        const key = `${fromIndex}:${toIndex}:${label}`;
+        if (edgeKeys.has(key)) return;
+        edgeKeys.add(key);
+        edges.push(generatedEdge(nodes, `e${nextEdge++}`, nodes[fromIndex].id, nodes[toIndex].id, 'dependency', label));
+      };
+      items.forEach((item, index) => {
+        const nodeIndex = index + 1;
+        const nextIndex = nodeIndex + 1;
+        if (!['return', 'raise', 'break', 'continue'].includes(item.kind)) addFlowEdge(nodeIndex, nextIndex);
+        else addFlowEdge(nodeIndex, item.kind === 'break' ? nodeIndex + 1 : nodes.length - 1, item.kind === 'break' ? 'ud' : '');
+        if (['if', 'elif', 'else', 'try', 'except', 'for', 'while', 'match', 'case'].includes(item.kind)) {
+          let after = items.length + 1;
+          for (let candidate = index + 1; candidate < items.length; candidate += 1) {
+            if (items[candidate].indent <= item.indent) { after = candidate + 1; break; }
+          }
+          if (after !== nextIndex) addFlowEdge(nodeIndex, after, ['for', 'while'].includes(item.kind) ? 'nej' : 'nej');
+          if (['for', 'while'].includes(item.kind) && after !== nextIndex) addFlowEdge(after - 1, nodeIndex, 'igen');
+        }
+      });
+      addFlowEdge(0, 1);
+      if (items.length) addFlowEdge(items.length, nodes.length - 1);
+      return {nodes, edges, message: `Flowdiagram genereret: ${items.length} trin og ${edges.length} forbindelser.`};
+    }
+
+    function generatePythonDiagram(source, type) {
+      const hasClass = /^\s*class\s+[A-Za-z_]\w*/m.test(source);
+      return type === 'class' || (type === 'auto' && hasClass)
+        ? generatePythonClassDiagram(source)
+        : generatePythonFlowDiagram(source);
+    }
+
+    function highlightPython(source) {
+      const code = String(source || '');
+      const tokenPattern = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|#[^\r\n]*|\b(?:and|as|assert|async|await|break|case|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|match|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)\b|\b\d+(?:\.\d+)?\b)/gm;
+      let result = '', cursor = 0, match;
+      while ((match = tokenPattern.exec(code))) {
+        result += htmlEscape(code.slice(cursor, match.index));
+        const token = match[0];
+        let kind = 'keyword';
+        if (token.startsWith('#')) kind = 'comment';
+        else if (/^["']/.test(token)) kind = 'string';
+        else if (/^\d/.test(token)) kind = 'number';
+        result += `<span class="py-${kind}">${htmlEscape(token)}</span>`;
+        cursor = match.index + token.length;
+      }
+      return result + htmlEscape(code.slice(cursor));
+    }
+
+    function updatePythonHighlight() {
+      const source = document.getElementById('pythonSource');
+      const highlight = document.getElementById('pythonHighlight');
+      if (!source || !highlight) return;
+      highlight.querySelector('code').innerHTML = highlightPython(source.value) || ' ';
+      highlight.scrollTop = source.scrollTop;
+      highlight.scrollLeft = source.scrollLeft;
+    }
+
+    function openPythonDialog() {
+      const dialog = document.getElementById('pythonDialog');
+      const source = document.getElementById('pythonSource');
+      document.getElementById('pythonError').hidden = true;
+      dialog.hidden = false;
+      updatePythonHighlight();
+      source.focus();
+    }
+
+    function closePythonDialog() { document.getElementById('pythonDialog').hidden = true; }
+
+    function generateFromPythonInput() {
+      const source = document.getElementById('pythonSource').value;
+      const type = document.getElementById('pythonDiagramType').value;
+      const error = document.getElementById('pythonError');
+      if (!source.trim()) { error.textContent = 'Indsæt Python-kode først.'; error.hidden = false; return; }
+      try {
+        const result = generatePythonDiagram(source, type);
+        installGeneratedDiagram(result.nodes, result.edges, result.message);
+        closePythonDialog();
+      } catch (generationError) {
+        error.textContent = generationError.message;
+        error.hidden = false;
+      }
+    }
+
+    function unitDirection(from, to) {
+      const length = Math.hypot(to.x - from.x, to.y - from.y) || 1;
+      return {x: (to.x - from.x) / length, y: (to.y - from.y) / length};
+    }
+
+    function exportMarker(type, point, direction) {
+      const normal = {x: -direction.y, y: direction.x};
+      const back = (distance, side = 0) => ({
+        x: point.x - direction.x * distance + normal.x * side,
+        y: point.y - direction.y * distance + normal.y * side
+      });
+      if (type === 'inheritance') {
+        const left = back(14, 7), right = back(14, -7);
+        return el('path', {class: 'edge-marker inheritance-marker', d: `M ${point.x} ${point.y} L ${left.x} ${left.y} L ${right.x} ${right.y} Z`, fill: 'none', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
+      }
+      if (type === 'dependency') {
+        const left = back(10, 5), right = back(10, -5);
+        return el('path', {class: 'edge-marker dependency-marker', d: `M ${left.x} ${left.y} L ${point.x} ${point.y} L ${right.x} ${right.y}`, fill: 'none', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
+      }
+      if (type === 'aggregation' || type === 'composition') {
+        const front = {x: point.x + direction.x * 8, y: point.y + direction.y * 8};
+        const backPoint = {x: point.x - direction.x * 8, y: point.y - direction.y * 8};
+        const upper = {x: point.x + normal.x * 8, y: point.y + normal.y * 8};
+        const lower = {x: point.x - normal.x * 8, y: point.y - normal.y * 8};
+        return el('path', {class: `edge-marker ${type}-marker`, d: `M ${front.x} ${front.y} L ${upper.x} ${upper.y} L ${backPoint.x} ${backPoint.y} L ${lower.x} ${lower.y} Z`, fill: type === 'composition' ? 'black' : 'none', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
+      }
+      return null;
+    }
+
     function exportPng() {
       const clone = canvas.cloneNode(true);
+      clone.querySelectorAll('rect').forEach(rect => {
+        if (rect.getAttribute('fill') === 'url(#grid)') rect.remove();
+      });
       clone.querySelectorAll('.handle, .selected').forEach(node => {
         if (node.classList.contains('handle')) node.remove();
         else node.classList.remove('selected');
       });
       const style = document.createElementNS(SVG_NS, 'style');
-      style.textContent = `.node-title{font-family:Arial,sans-serif;font-weight:bold}.node-body{font-family:Consolas,'Courier New',monospace}.relation-label{font:13px Arial,sans-serif;fill:#111;paint-order:stroke;stroke:white;stroke-width:5px}.edge-line{fill:none;stroke:#111;stroke-width:1.5;stroke-linejoin:miter;stroke-linecap:square}.edge.selected .edge-line{stroke:#111;stroke-width:1.5}`;
+      style.textContent = `.node-title{font-family:Arial,sans-serif;font-weight:bold}.node-body{font-family:Consolas,'Courier New',monospace}.flow-shape{fill:#fff;stroke:#111;stroke-width:1.5;stroke-linejoin:miter}.flow-label{fill:#111;font:13px Arial,sans-serif}.relation-label{font:13px Arial,sans-serif;fill:#111;paint-order:stroke;stroke:white;stroke-width:5px}.edge-line{fill:none;stroke:#111;stroke-width:1.5;stroke-linejoin:miter;stroke-linecap:square}.edge.selected .edge-line{stroke:#111;stroke-width:1.5}`;
       clone.insertBefore(style, clone.firstChild);
       clone.setAttribute('width', '1600'); clone.setAttribute('height', '1000');
       const svgText = new XMLSerializer().serializeToString(clone);
@@ -655,7 +1092,14 @@
         edge.manual = true;
         if (index === 0) edge.startSide = nearestSide(nodeById(edge.from), point);
         else if (index === points.length - 1) edge.endSide = nearestSide(nodeById(edge.to), point);
-        else { edge.bends[index - 1] = {x: snap(point.x), y: snap(point.y)}; }
+        else if (edge.bends.length === 2 && isHorizontalSide(edge.startSide) === isHorizontalSide(edge.endSide)) {
+          // Two-knæk routes have one shared free coordinate. Move both
+          // handles together so the route can never become diagonal.
+          if (isHorizontalSide(edge.startSide)) edge.bends = edge.bends.map(bend => ({x: snap(point.x), y: bend.y}));
+          else edge.bends = edge.bends.map(bend => ({x: bend.x, y: snap(point.y)}));
+        } else {
+          edge.bends[index - 1] = {x: snap(point.x), y: snap(point.y)};
+        }
         render();
       }
     });
@@ -670,14 +1114,33 @@
     document.getElementById('relationTool').addEventListener('click', () => setMode('relation'));
     document.getElementById('newBtn').addEventListener('click', () => { if (confirm('Det nuværende diagram tømmes. Fortsæt?')) blankDiagram(); });
     document.getElementById('saveJsonBtn').addEventListener('click', saveJson);
+    document.getElementById('savePumlBtn').addEventListener('click', savePuml);
     document.getElementById('exportBtn').addEventListener('click', exportPng);
     document.getElementById('openJsonBtn').addEventListener('click', () => document.getElementById('jsonFile').click());
     document.getElementById('openPumlBtn').addEventListener('click', () => document.getElementById('pumlFile').click());
+    document.getElementById('pythonBtn').addEventListener('click', openPythonDialog);
+    document.getElementById('cancelPythonBtn').addEventListener('click', closePythonDialog);
+    document.getElementById('generatePythonBtn').addEventListener('click', generateFromPythonInput);
+    document.getElementById('pythonDialog').addEventListener('click', event => {
+      if (event.target.id === 'pythonDialog') closePythonDialog();
+    });
+    document.getElementById('pythonSource').addEventListener('keydown', event => {
+      if (event.ctrlKey && event.key === 'Enter') { event.preventDefault(); generateFromPythonInput(); }
+    });
+    document.getElementById('pythonSource').addEventListener('input', updatePythonHighlight);
+    document.getElementById('pythonSource').addEventListener('scroll', updatePythonHighlight);
     document.getElementById('themeBtn').addEventListener('click', () => document.getElementById('themeFile').click());
     document.getElementById('jsonFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { loadJson(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse JSON: ${error.message}`); } event.target.value = ''; });
     document.getElementById('pumlFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { parsePuml(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse PlantUML: ${error.message}`); } event.target.value = ''; });
     document.getElementById('themeFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; state.themeName = file.name; themeBadge.textContent = `Tema: ${state.themeName} · ortho · monochrome`; setStatus(`Temaet ${file.name} er valgt. Editorens monochrome-stil følger thinkjava-indstillingerne.`); event.target.value = ''; });
     document.addEventListener('keydown', event => {
+      if (!document.getElementById('pythonDialog').hidden && event.key === 'Escape') { closePythonDialog(); return; }
+      const editingField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.target.isContentEditable;
+      const arrowSteps = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]};
+      if (!editingField && arrowSteps[event.key] && moveSelectedNode(...arrowSteps[event.key].map(value => value * (event.shiftKey ? 10 : 1)))) {
+        event.preventDefault();
+        return;
+      }
       if (event.key === 'Delete' && state.selected) { state.selected.kind === 'node' ? deleteNode(state.selected.id) : deleteEdge(state.selected.id); }
       if (event.key === 'Escape') setMode('select');
       if (event.ctrlKey && event.key.toLowerCase() === 's') { event.preventDefault(); exportPng(); }
