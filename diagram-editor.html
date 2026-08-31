@@ -106,16 +106,84 @@
     .python-dialog[hidden] { display: none; }
     .python-dialog-card { width: min(760px, 100%); max-height: 90vh; overflow: auto; padding: 20px; background: white; border: 1px solid #999; box-shadow: 0 5px 25px rgb(0 0 0 / 25%); }
     .python-dialog-card h2 { margin: 0 0 6px; font-size: 18px; }
-    .code-editor { position: relative; height: 360px; border: 1px solid #aaa; border-radius: 3px; background: #fbfbfb; overflow: hidden; }
-    .code-editor pre, .code-editor textarea { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 9px; border: 0; font-family: Consolas, 'Courier New', monospace; font-size: 13px; line-height: 1.45; tab-size: 4; white-space: pre-wrap; overflow: auto; overflow-wrap: break-word; }
-    .code-editor pre { pointer-events: none; color: #222; }
-    .code-editor textarea { resize: none; color: transparent; caret-color: #111; background: transparent; outline: none; }
-    .code-editor textarea::selection { color: transparent; background: rgb(37 99 235 / 25%); }
-    .code-editor .py-keyword { color: #7c3aed; font-weight: bold; }
-    .code-editor .py-string { color: #047857; }
-    .code-editor .py-comment { color: #6b7280; font-style: italic; }
-    .code-editor .py-number { color: #b45309; }
-    .code-editor .py-builtin { color: #0369a1; }
+    .code-editor {
+      --editor-bg: #111827;
+      --editor-panel: #0f172a;
+      --editor-line: #334155;
+      --editor-text: #e5e7eb;
+      position: relative;
+      height: 410px;
+      overflow: hidden;
+      border: 1px solid #0b1220;
+      border-radius: 7px;
+      background: var(--editor-bg);
+      box-shadow: 0 8px 24px rgb(15 23 42 / 18%);
+    }
+    .code-editor-toolbar, .code-editor-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 12px;
+      color: #94a3b8;
+      background: var(--editor-panel);
+      font: 11px Arial, sans-serif;
+      letter-spacing: .01em;
+    }
+    .code-editor-toolbar { height: 38px; border-bottom: 1px solid var(--editor-line); }
+    .code-editor-footer { position: absolute; right: 0; bottom: 0; left: 0; height: 28px; border-top: 1px solid var(--editor-line); }
+    .code-language { display: flex; align-items: center; gap: 7px; color: #f8fafc; font-weight: bold; }
+    .code-language::before { width: 8px; height: 8px; border-radius: 50%; background: #facc15; content: ''; }
+    .code-hint { color: #64748b; }
+    .code-editor-main { position: absolute; inset: 38px 0 28px; overflow: hidden; }
+    .code-editor pre, .code-editor textarea {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 14px 16px 18px 68px;
+      border: 0;
+      font-family: Consolas, 'Courier New', monospace;
+      font-size: 13px;
+      line-height: 1.6;
+      tab-size: 4;
+      white-space: pre;
+      overflow: auto;
+    }
+    .code-editor pre { z-index: 1; pointer-events: none; color: var(--editor-text); scrollbar-width: none; }
+    .code-editor pre::-webkit-scrollbar { display: none; }
+    .code-editor textarea { z-index: 2; resize: none; color: transparent; caret-color: #f8fafc; background: transparent; outline: none; }
+    .code-editor textarea::selection { color: transparent; background: rgb(96 165 250 / 28%); }
+    .code-editor textarea::placeholder { color: #64748b; opacity: 1; }
+    .code-gutter {
+      position: absolute;
+      z-index: 3;
+      top: 0;
+      bottom: 0;
+      left: 0;
+      width: 52px;
+      padding: 14px 12px 18px 0;
+      overflow: hidden;
+      color: #64748b;
+      border-right: 1px solid #1e293b;
+      font: 13px/1.6 Consolas, 'Courier New', monospace;
+      text-align: right;
+      user-select: none;
+      pointer-events: none;
+    }
+    .code-editor .py-keyword { color: #c084fc; }
+    .code-editor .py-string { color: #86efac; }
+    .code-editor .py-comment { color: #64748b; font-style: italic; }
+    .code-editor .py-number { color: #fbbf24; }
+    .code-editor .py-builtin { color: #67e8f9; }
+    .code-editor .py-function { color: #93c5fd; }
+    .code-editor .py-class { color: #fcd34d; }
+    .code-editor .py-decorator { color: #f9a8d4; }
+    .code-editor .py-operator { color: #cbd5e1; }
+    @media (max-width: 560px) {
+      .code-hint { display: none; }
+      .code-editor { height: 350px; }
+    }
     .dialog-actions { display: flex; justify-content: flex-end; gap: 8px; margin-top: 12px; }
   </style>
 </head>
@@ -198,13 +266,24 @@
       <div class="field">
         <label for="pythonSource">Python-kode</label>
         <div class="code-editor" id="pythonCodeEditor">
-          <pre id="pythonHighlight" aria-hidden="true"><code></code></pre>
+          <div class="code-editor-toolbar">
+            <span class="code-language">Python</span>
+            <span class="code-hint">Tab for indrykning · Ctrl+Enter for at generere</span>
+          </div>
+          <div class="code-editor-main">
+            <div id="pythonGutter" class="code-gutter" aria-hidden="true"></div>
+            <pre id="pythonHighlight" aria-hidden="true"><code></code></pre>
           <textarea id="pythonSource" spellcheck="false" placeholder="class Animal:
     def speak(self):
         return '...'
 
 if ready:
-    run()"></textarea>
+    run()" aria-label="Python-kode"></textarea>
+          </div>
+          <div class="code-editor-footer">
+            <span id="pythonCursorInfo">Linje 1, kolonne 1</span>
+            <span id="pythonCodeStats">1 linje · 0 tegn</span>
+          </div>
         </div>
       </div>
       <div id="pythonError" class="selection-note" hidden></div>
@@ -938,16 +1017,22 @@ if ready:
 
     function highlightPython(source) {
       const code = String(source || '');
-      const tokenPattern = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|#[^\r\n]*|\b(?:and|as|assert|async|await|break|case|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|match|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)\b|\b\d+(?:\.\d+)?\b)/gm;
+      const tokenPattern = /("""[\s\S]*?"""|'''[\s\S]*?'''|"(?:\\.|[^"\\\r\n])*"|'(?:\\.|[^'\\\r\n])*'|#[^\r\n]*|@[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*|\b\d+(?:\.\d+)?\b|\b[A-Za-z_]\w*\b|==|!=|<=|>=|:=|\+=|-=|\*=|\/=|\*\*|->|[+\-*\/%=<>:&|^~])/gm;
       let result = '', cursor = 0, match;
       while ((match = tokenPattern.exec(code))) {
         result += htmlEscape(code.slice(cursor, match.index));
         const token = match[0];
-        let kind = 'keyword';
+        let kind = '';
         if (token.startsWith('#')) kind = 'comment';
         else if (/^["']/.test(token)) kind = 'string';
+        else if (token.startsWith('@')) kind = 'decorator';
         else if (/^\d/.test(token)) kind = 'number';
-        result += `<span class="py-${kind}">${htmlEscape(token)}</span>`;
+        else if (/^[+\-*\/%=<>:&|^~]/.test(token)) kind = 'operator';
+        else if (/^(and|as|assert|async|await|break|case|class|continue|def|del|elif|else|except|False|finally|for|from|global|if|import|in|is|lambda|match|None|nonlocal|not|or|pass|raise|return|True|try|while|with|yield)$/.test(token)) kind = 'keyword';
+        else if (/^(abs|all|any|bool|dict|enumerate|filter|float|int|len|list|map|max|min|open|print|range|repr|reversed|set|str|sum|super|tuple|type|zip|self)$/.test(token)) kind = 'builtin';
+        else if (/^def\s*$/.test(code.slice(Math.max(0, match.index - 4), match.index))) kind = 'function';
+        else if (/^class\s*$/.test(code.slice(Math.max(0, match.index - 6), match.index))) kind = 'class';
+        result += kind ? '<span class="py-' + kind + '">' + htmlEscape(token) + '</span>' : htmlEscape(token);
         cursor = match.index + token.length;
       }
       return result + htmlEscape(code.slice(cursor));
@@ -956,10 +1041,50 @@ if ready:
     function updatePythonHighlight() {
       const source = document.getElementById('pythonSource');
       const highlight = document.getElementById('pythonHighlight');
-      if (!source || !highlight) return;
+      const gutter = document.getElementById('pythonGutter');
+      if (!source || !highlight || !gutter) return;
       highlight.querySelector('code').innerHTML = highlightPython(source.value) || ' ';
       highlight.scrollTop = source.scrollTop;
       highlight.scrollLeft = source.scrollLeft;
+      gutter.style.transform = `translateY(${-source.scrollTop}px)`;
+      const lineCount = Math.max(1, source.value.split(/\r?\n/).length);
+      gutter.textContent = Array.from({length: lineCount}, (_, index) => index + 1).join('\n');
+      const beforeCursor = source.value.slice(0, source.selectionStart || 0);
+      const cursorLines = beforeCursor.split(/\r?\n/);
+      document.getElementById('pythonCursorInfo').textContent = `Linje ${cursorLines.length}, kolonne ${cursorLines.at(-1).length + 1}`;
+      document.getElementById('pythonCodeStats').textContent = `${lineCount} ${lineCount === 1 ? 'linje' : 'linjer'} · ${source.value.length} tegn`;
+    }
+
+    function replacePythonSelection(text) {
+      const source = document.getElementById('pythonSource');
+      source.setRangeText(text, source.selectionStart, source.selectionEnd, 'end');
+      updatePythonHighlight();
+    }
+
+    function handlePythonEditorKeydown(event) {
+      const source = event.currentTarget;
+      if (event.key === 'Tab' || event.keyCode === 9) {
+        event.preventDefault();
+        event.stopImmediatePropagation();
+        if (event.shiftKey) {
+          const lineStart = source.value.lastIndexOf('\n', source.selectionStart - 1) + 1;
+          const line = source.value.slice(lineStart);
+          if (line.startsWith('    ')) source.setRangeText('', lineStart, lineStart + 4, 'end');
+          else if (line.startsWith('\t')) source.setRangeText('', lineStart, lineStart + 1, 'end');
+        } else {
+          replacePythonSelection('    ');
+        }
+        updatePythonHighlight();
+        return;
+      }
+      if (event.key === 'Enter' && !event.shiftKey && !event.ctrlKey && !event.metaKey) {
+        const lineStart = source.value.lastIndexOf('\n', source.selectionStart - 1) + 1;
+        const indent = (source.value.slice(lineStart).match(/^[ \t]*/) || [''])[0];
+        const currentLine = source.value.slice(lineStart, source.selectionStart);
+        const extraIndent = /:\s*(#.*)?$/.test(currentLine) ? '    ' : '';
+        event.preventDefault();
+        replacePythonSelection(`\n${indent}${extraIndent}`);
+      }
     }
 
     function openPythonDialog() {
@@ -1129,6 +1254,9 @@ if ready:
     });
     document.getElementById('pythonSource').addEventListener('input', updatePythonHighlight);
     document.getElementById('pythonSource').addEventListener('scroll', updatePythonHighlight);
+    document.getElementById('pythonSource').addEventListener('keydown', handlePythonEditorKeydown, true);
+    document.getElementById('pythonSource').addEventListener('keyup', updatePythonHighlight);
+    document.getElementById('pythonSource').addEventListener('click', updatePythonHighlight);
     document.getElementById('themeBtn').addEventListener('click', () => document.getElementById('themeFile').click());
     document.getElementById('jsonFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { loadJson(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse JSON: ${error.message}`); } event.target.value = ''; });
     document.getElementById('pumlFile').addEventListener('change', async event => { const file = event.target.files[0]; if (!file) return; try { parsePuml(await file.text()); } catch (error) { setStatus(`Kunne ikke indlæse PlantUML: ${error.message}`); } event.target.value = ''; });
