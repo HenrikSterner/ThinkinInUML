@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>ThinkJava klassediagram-editor</title>
+  <title>ThinkInUML klasse og flow-diagram-editor</title>
   <style>
     :root {
       --ink: #111;
@@ -122,7 +122,7 @@
 <body>
   <div class="app">
     <header class="topbar">
-      <div class="brand">ThinkJava diagram-editor</div>
+      <div class="brand">ThinkInUML klasse og flow-diagram-editor</div>
       <button id="newBtn" title="Nyt diagram (Ctrl+N)">Nyt</button>
       <button id="openJsonBtn">Åbn JSON</button>
       <button id="saveJsonBtn">Gem JSON</button>
@@ -1144,10 +1144,10 @@ if ready:
       if (event.key === 'Delete' && state.selected) { state.selected.kind === 'node' ? deleteNode(state.selected.id) : deleteEdge(state.selected.id); }
       if (event.key === 'Escape') setMode('select');
       if (event.ctrlKey && event.key.toLowerCase() === 's') { event.preventDefault(); exportPng(); }
-      if (event.ctrlKey && event.key.toLowerCase() === 'n') { event.preventDefault(); starter(); }
+      if (event.ctrlKey && event.key.toLowerCase() === 'n') { event.preventDefault(); blankDiagram(); }
     });
 
-    starter();
+    blankDiagram();
   </script>
 </body>
 </html>
