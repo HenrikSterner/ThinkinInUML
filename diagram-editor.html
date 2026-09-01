@@ -1133,11 +1133,12 @@ if ready:
         return el('path', {class: 'edge-marker dependency-marker', d: `M ${left.x} ${left.y} L ${point.x} ${point.y} L ${right.x} ${right.y}`, fill: 'none', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
       }
       if (type === 'aggregation' || type === 'composition') {
-        const front = {x: point.x + direction.x * 8, y: point.y + direction.y * 8};
-        const backPoint = {x: point.x - direction.x * 8, y: point.y - direction.y * 8};
-        const upper = {x: point.x + normal.x * 8, y: point.y + normal.y * 8};
-        const lower = {x: point.x - normal.x * 8, y: point.y - normal.y * 8};
-        return el('path', {class: `edge-marker ${type}-marker`, d: `M ${front.x} ${front.y} L ${upper.x} ${upper.y} L ${backPoint.x} ${backPoint.y} L ${lower.x} ${lower.y} Z`, fill: type === 'composition' ? 'black' : 'none', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
+        const innerTip = point;
+        const outerTip = {x: point.x - direction.x * 16, y: point.y - direction.y * 16};
+        const center = {x: point.x - direction.x * 8, y: point.y - direction.y * 8};
+        const upper = {x: center.x + normal.x * 8, y: center.y + normal.y * 8};
+        const lower = {x: center.x - normal.x * 8, y: center.y - normal.y * 8};
+        return el('path', {class: `edge-marker ${type}-marker`, d: `M ${innerTip.x} ${innerTip.y} L ${upper.x} ${upper.y} L ${outerTip.x} ${outerTip.y} L ${lower.x} ${lower.y} Z`, fill: type === 'composition' ? 'black' : 'white', stroke: 'black', 'stroke-width': 1.2, 'stroke-linejoin': 'miter'});
       }
       return null;
     }
