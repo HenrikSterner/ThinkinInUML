@@ -339,6 +339,10 @@ if ready:
       return n;
     }
 
+    function clearChildren(node) {
+      while (node.firstChild) node.removeChild(node.firstChild);
+    }
+
     function htmlEscape(value) {
       return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
     }
@@ -479,9 +483,9 @@ if ready:
     }
 
     function render() {
-      edgesLayer.replaceChildren();
-      nodesLayer.replaceChildren();
-      handlesLayer.replaceChildren();
+      clearChildren(edgesLayer);
+      clearChildren(nodesLayer);
+      clearChildren(handlesLayer);
 
       for (const edge of state.edges) {
         const points = edgePoints(edge);
@@ -1051,7 +1055,7 @@ if ready:
       gutter.textContent = Array.from({length: lineCount}, (_, index) => index + 1).join('\n');
       const beforeCursor = source.value.slice(0, source.selectionStart || 0);
       const cursorLines = beforeCursor.split(/\r?\n/);
-      document.getElementById('pythonCursorInfo').textContent = `Linje ${cursorLines.length}, kolonne ${cursorLines.at(-1).length + 1}`;
+      document.getElementById('pythonCursorInfo').textContent = `Linje ${cursorLines.length}, kolonne ${cursorLines[cursorLines.length - 1].length + 1}`;
       document.getElementById('pythonCodeStats').textContent = `${lineCount} ${lineCount === 1 ? 'linje' : 'linjer'} · ${source.value.length} tegn`;
     }
 
@@ -1251,7 +1255,7 @@ if ready:
       if (event.target.id === 'pythonDialog') closePythonDialog();
     });
     document.getElementById('pythonSource').addEventListener('keydown', event => {
-      if (event.ctrlKey && event.key === 'Enter') { event.preventDefault(); generateFromPythonInput(); }
+      if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') { event.preventDefault(); generateFromPythonInput(); }
     });
     document.getElementById('pythonSource').addEventListener('input', updatePythonHighlight);
     document.getElementById('pythonSource').addEventListener('scroll', updatePythonHighlight);
@@ -1266,14 +1270,18 @@ if ready:
       if (!document.getElementById('pythonDialog').hidden && event.key === 'Escape') { closePythonDialog(); return; }
       const editingField = ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName) || event.target.isContentEditable;
       const arrowSteps = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]};
-      if (!editingField && arrowSteps[event.key] && moveSelectedNode(...arrowSteps[event.key].map(value => value * (event.shiftKey ? 10 : 1)))) {
+      const arrowKeyAliases = {Left: 'ArrowLeft', Right: 'ArrowRight', Up: 'ArrowUp', Down: 'ArrowDown'};
+      const arrowKey = arrowKeyAliases[event.key] || (arrowSteps[event.key] ? event.key : event.code);
+      if (!editingField && arrowSteps[arrowKey] && moveSelectedNode(...arrowSteps[arrowKey].map(value => value * (event.shiftKey ? 10 : 1)))) {
         event.preventDefault();
         return;
       }
-      if (event.key === 'Delete' && state.selected) { state.selected.kind === 'node' ? deleteNode(state.selected.id) : deleteEdge(state.selected.id); }
+      const deleteKey = event.key === 'Delete' || event.key === 'Backspace' || event.code === 'Delete' || event.code === 'Backspace';
+      if (!editingField && deleteKey && state.selected) { event.preventDefault(); state.selected.kind === 'node' ? deleteNode(state.selected.id) : deleteEdge(state.selected.id); }
       if (event.key === 'Escape') setMode('select');
-      if (event.ctrlKey && event.key.toLowerCase() === 's') { event.preventDefault(); exportPng(); }
-      if (event.ctrlKey && event.key.toLowerCase() === 'n') { event.preventDefault(); blankDiagram(); }
+      const shortcutKey = event.key.toLowerCase();
+      if ((event.ctrlKey || event.metaKey) && shortcutKey === 's') { event.preventDefault(); exportPng(); }
+      if ((event.ctrlKey || event.metaKey) && shortcutKey === 'n') { event.preventDefault(); blankDiagram(); }
     });
 
     blankDiagram();
