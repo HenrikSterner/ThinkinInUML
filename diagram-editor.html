@@ -89,6 +89,7 @@
     .muted { color: var(--muted); font-size: 13px; line-height: 1.4; }
     .empty { color: #666; line-height: 1.5; font-size: 14px; }
     .status { min-height: 34px; padding: 8px 12px; border-top: 1px solid #ccc; background: #fafafa; color: #555; font-size: 12px; }
+    .copyright { padding: 5px 12px 7px; background: #fafafa; color: #777; font-size: 11px; text-align: center; }
     .node-title { font-family: Arial, sans-serif; font-weight: bold; }
     .node-body { font-family: Consolas, 'Courier New', monospace; }
     .flow .flow-shape { fill: var(--paper); stroke: var(--ink); stroke-width: 1.5; stroke-linejoin: miter; }
@@ -251,6 +252,7 @@
       </aside>
     </div>
     <div class="status" id="status">Klar. Åbn filen direkte i browseren for at bruge editoren.</div>
+    <footer class="copyright">Copyright (C) Henrik Sterner (udvikler) og Kathrine Bohus Madsen - Værktøj til lærebogen Python I Gymnasiet</footer>
   </div>
 
   <div id="pythonDialog" class="python-dialog" hidden>
@@ -291,6 +293,7 @@ if ready:
       <div id="pythonError" class="selection-note" hidden></div>
       <div class="dialog-actions">
         <button id="cancelPythonBtn">Annuller</button>
+        <button id="savePythonBtn">Eksportér .py</button>
         <button id="generatePythonBtn" class="active">Generér diagram</button>
       </div>
     </div>
@@ -743,6 +746,12 @@ if ready:
     }
 
     const pythonReservedWords = ['and', 'as', 'assert', 'async', 'await', 'break', 'case', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'match', 'None', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try', 'while', 'with', 'yield'];
+    const pythonRelationDescriptions = {
+      association: 'reference to',
+      aggregation: 'shared part',
+      composition: 'owned part'
+    };
+    const pythonDiamondRelationTypes = new Set(['aggregation', 'composition']);
 
     function pythonIdentifier(value, fallback) {
       let result = String(value || '').trim().replace(/[^A-Za-z0-9_]/g, '_');
@@ -839,6 +848,19 @@ if ready:
       return `rectangle "${pumlQuote(node.name || 'Unnamed')}${shape}" as ${pumlNodeRef(node)}`;
     }
 
+    function pythonRelationshipData(node, names, attributeNames) {
+      return state.edges.filter(edge => {
+        // Aggregation/composition markers are rendered at edge.from, so this
+        // is the class that owns the reference to the class at edge.to.
+        const isReference = edge.type === 'association' || pythonDiamondRelationTypes.has(edge.type);
+        return isReference && edge.from === node.id && names.has(edge.to);
+      }).map(edge => {
+        const target = names.get(edge.to);
+        const fieldName = uniquePythonIdentifier(target.charAt(0).toLowerCase() + target.slice(1), 'related', attributeNames);
+        return {type: edge.type, target, fieldName, hasDiamond: pythonDiamondRelationTypes.has(edge.type)};
+      });
+    }
+
     function serializePython() {
       const classNodes = state.nodes.filter(node => !node.diagramKind || node.diagramKind === 'class');
       if (!classNodes.length) return '# Ingen klasser findes i diagrammet endnu.\n';
@@ -858,12 +880,7 @@ if ready:
 
         const attributes = pythonAttributeData(node, classNodes);
         const attributeNames = new Set(attributes.map(attribute => attribute.name));
-        const relationships = state.edges.filter(edge => edge.from === node.id && edge.type !== 'inheritance').map(edge => {
-          const target = names.get(edge.to);
-          if (!target) return null;
-          const fieldName = uniquePythonIdentifier(target.charAt(0).toLowerCase() + target.slice(1), 'related', attributeNames);
-          return {type: edge.type, target, fieldName};
-        }).filter(Boolean);
+        const relationships = pythonRelationshipData(node, names, attributeNames);
         const methods = pythonMethodData(node, classNodes);
         const hasInit = methods.some(method => method.name === '__init__');
         if (attributes.length || relationships.length) {
@@ -876,8 +893,9 @@ if ready:
           if (method.name === '__init__') {
             attributes.forEach(attribute => output.push(`        self.${attribute.name}${attribute.type ? `: ${attribute.type}` : ''} = ${attribute.defaultValue}`));
             relationships.forEach(relation => {
-              output.push(`        # ${relation.type} -> ${relation.target}`);
-              output.push(`        self.${relation.fieldName}: ${relation.target} = None`);
+              const marker = relation.hasDiamond ? ' (diamond at this class)' : '';
+              output.push(`        # ${relation.type}${marker}: ${pythonRelationDescriptions[relation.type]} ${relation.target}`);
+              output.push(`        self.${relation.fieldName}: ${relation.target} | None = None`);
             });
           }
           output.push('        pass');
@@ -930,6 +948,13 @@ if ready:
     function saveJson() { download('klassediagram.json', serialize(), 'application/json'); setStatus('Diagram gemt som JSON.'); }
 
     function savePuml() { download('klassediagram.puml', serializePuml(), 'text/plain;charset=utf-8'); setStatus('Diagram gemt som PUML.'); }
+
+    function savePython() {
+      const source = document.getElementById('pythonSource').value;
+      if (!source.trim()) { setStatus('Der er ingen Python-kode at eksportere.'); return; }
+      download('klassediagram.py', source.endsWith('\n') ? source : `${source}\n`, 'text/x-python;charset=utf-8');
+      setStatus('Python-kode gemt som klassediagram.py.');
+    }
 
     function loadJson(text) {
       const data = JSON.parse(text);
@@ -1109,8 +1134,11 @@ if ready:
         });
         classes.forEach((other, otherIndex) => {
           if (index === otherIndex || item.bases.some(base => base.split('.').pop().trim() === other.name)) return;
-          if (new RegExp(`\\b${other.name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&')}\\b`).test(item.body)) {
-            edges.push(generatedEdge(nodes, `e${nextEdge++}`, child.id, nodes[otherIndex].id, 'association'));
+          const escapedName = other.name.replace(/[.*+?^${}()|[\\]\\\\]/g, '\\\\$&');
+          const explicitRelation = item.body.match(new RegExp(`#\\s*(association|aggregation|composition)\\s*:[^\\n]*\\b${escapedName}\\b`, 'i'));
+          if (explicitRelation || new RegExp(`\\b${escapedName}\\b`).test(item.body)) {
+            const relationType = explicitRelation ? explicitRelation[1].toLowerCase() : 'association';
+            edges.push(generatedEdge(nodes, `e${nextEdge++}`, child.id, nodes[otherIndex].id, relationType));
           }
         });
       });
@@ -1448,6 +1476,7 @@ if ready:
     document.getElementById('pythonBtn').addEventListener('click', openPythonDialog);
     document.getElementById('pythonFromDiagramBtn').addEventListener('click', openPythonFromDiagramDialog);
     document.getElementById('cancelPythonBtn').addEventListener('click', closePythonDialog);
+    document.getElementById('savePythonBtn').addEventListener('click', savePython);
     document.getElementById('generatePythonBtn').addEventListener('click', generateFromPythonInput);
     document.getElementById('pythonDialog').addEventListener('click', event => {
       if (event.target.id === 'pythonDialog') closePythonDialog();
