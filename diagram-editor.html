@@ -83,6 +83,7 @@
     .field label { display: block; font-size: 12px; font-weight: bold; margin-bottom: 4px; }
     .field input, .field textarea, .field select { width: 100%; border: 1px solid #aaa; border-radius: 3px; padding: 7px; background: white; }
     .field textarea { min-height: 75px; resize: vertical; font-family: Consolas, 'Courier New', monospace; font-size: 12px; }
+    .field textarea::placeholder { color: #999; opacity: 1; white-space: pre-wrap; }
     .row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
     .danger { color: #a00; border-color: #c88; }
     .muted { color: var(--muted); font-size: 13px; line-height: 1.4; }
@@ -197,6 +198,7 @@
       <button id="savePumlBtn">Gem PUML</button>
       <button id="openPumlBtn">Åbn .puml</button>
       <button id="pythonBtn">Python → diagram</button>
+      <button id="pythonFromDiagramBtn">Diagram til Python</button>
       <button id="themeBtn" title="Vælg thinkjava.puml eller en anden tema-fil">Brug thinkjava.puml</button>
       <div class="toolbar-separator"></div>
       <button id="exportBtn" title="Eksportér som PNG (Ctrl+S)">Gem som PNG</button>
@@ -254,8 +256,8 @@
   <div id="pythonDialog" class="python-dialog" hidden>
     <div class="python-dialog-card" role="dialog" aria-modal="true" aria-labelledby="pythonDialogTitle">
       <h2 id="pythonDialogTitle">Python til diagram</h2>
-      <p class="muted">Indsæt Python-kode. Vælg automatisk for at lave et klassediagram, hvis koden indeholder klasser, ellers et flowdiagram.</p>
-      <div class="field">
+        <p id="pythonDialogDescription" class="muted">Indsæt Python-kode. Vælg automatisk for at lave et klassediagram, hvis koden indeholder klasser, ellers et flowdiagram.</p>
+      <div id="pythonTypeField" class="field">
         <label for="pythonDiagramType">Diagramtype</label>
         <select id="pythonDiagramType">
           <option value="auto">Automatisk</option>
@@ -595,8 +597,8 @@ if ready:
           <div class="field"><label for="nodeName">Navn</label><input id="nodeName" value="${htmlEscape(node.name)}"></div>
           <div class="field"><label for="nodeType">Type</label><select id="nodeType"><option value="class">class</option><option value="interface">interface</option><option value="abstract">abstract class</option></select></div>
           <div class="field"><label for="nodeWidth">Bredde</label><input id="nodeWidth" type="number" min="150" max="650" step="10" value="${node.w}"></div>
-          <div class="field"><label for="nodeAttrs">Attributter (én pr. linje)</label><textarea id="nodeAttrs">${htmlEscape(node.attributes)}</textarea></div>
-          <div class="field"><label for="nodeMethods">Metoder (valgfri, én pr. linje)</label><textarea id="nodeMethods">${htmlEscape(node.methods)}</textarea></div>
+          <div class="field"><label for="nodeAttrs">Attributter (én pr. linje)</label><textarea id="nodeAttrs" placeholder="-private_attr: str&#10;+public_attr: int&#10;#protected_attr: bool">${htmlEscape(node.attributes)}</textarea></div>
+          <div class="field"><label for="nodeMethods">Metoder (valgfri, én pr. linje)</label><textarea id="nodeMethods" placeholder="-private_method(value: int): str&#10;+public_method(name: str, age: int): None&#10;#protected_method(): bool">${htmlEscape(node.methods)}</textarea></div>
           <button id="deleteNodeBtn" class="danger">Slet klasse</button>
         </div>`;
       document.getElementById('nodeType').value = node.type;
@@ -740,9 +742,150 @@ if ready:
       return `${keyword} "${pumlQuote(node.name || 'Unnamed')}" as ${pumlNodeRef(node)}${body}`;
     }
 
+    const pythonReservedWords = ['and', 'as', 'assert', 'async', 'await', 'break', 'case', 'class', 'continue', 'def', 'del', 'elif', 'else', 'except', 'False', 'finally', 'for', 'from', 'global', 'if', 'import', 'in', 'is', 'lambda', 'match', 'None', 'nonlocal', 'not', 'or', 'pass', 'raise', 'return', 'True', 'try', 'while', 'with', 'yield'];
+
+    function pythonIdentifier(value, fallback) {
+      let result = String(value || '').trim().replace(/[^A-Za-z0-9_]/g, '_');
+      if (!result) result = fallback;
+      if (!/^[A-Za-z_]/.test(result)) result = '_' + result;
+      if (pythonReservedWords.includes(result)) result += '_';
+      return result;
+    }
+
+    function uniquePythonIdentifier(value, fallback, used) {
+      const base = pythonIdentifier(value, fallback);
+      let result = base, index = 2;
+      while (used.has(result)) result = `${base}_${index++}`;
+      used.add(result);
+      return result;
+    }
+
+    function pythonClassNameMap(classNodes) {
+      const names = new Map(), used = new Set();
+      classNodes.forEach((node, index) => names.set(node.id, uniquePythonIdentifier(node.name, `Class${index + 1}`, used)));
+      return names;
+    }
+
+    function pythonTypeName(value, classNodes) {
+      let type = String(value || '').trim();
+      if (!type) return '';
+      const knownTypes = {String: 'str', string: 'str', Integer: 'int', Boolean: 'bool', boolean: 'bool', Float: 'float', Object: 'object', void: 'None'};
+      if (knownTypes[type]) type = knownTypes[type];
+      classNodes.forEach(node => {
+        const original = String(node.name || '').trim();
+        if (original && type === original) type = pythonIdentifier(original, 'Class');
+      });
+      return type.replace(/[^A-Za-z0-9_., [\]]/g, '') || 'object';
+    }
+
+    function pythonVisibility(text) {
+      const marker = String(text || '').trim().match(/^([+#~-])\s*/);
+      return marker ? marker[1] : '+';
+    }
+
+    function pythonMemberName(name, visibility) {
+      const cleanName = pythonIdentifier(name, 'member');
+      if (visibility === '-') return /^__.*__$/.test(cleanName) || cleanName.startsWith('__') ? cleanName : `__${cleanName}`;
+      if (visibility === '#') return cleanName.startsWith('_') ? cleanName : `_${cleanName}`;
+      return cleanName;
+    }
+
+    function pythonAttributeData(node, classNodes) {
+      const used = new Set();
+      return lines(node.attributes).map(raw => {
+        const text = raw.replace(/^[+#~-]\s*/, '').trim();
+        const match = text.match(/^([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?(?:\s*=\s*(.+))?$/);
+        if (!match) return null;
+        return {name: uniquePythonIdentifier(pythonMemberName(match[1], pythonVisibility(raw)), 'attribute', used), type: pythonTypeName(match[2], classNodes), defaultValue: match[3] ? match[3].trim() : 'None'};
+      }).filter(Boolean);
+    }
+
+    function pythonMethodData(node, classNodes) {
+      return lines(node.methods).map(raw => {
+        const text = raw.replace(/^[+#~-]\s*/, '').trim();
+        const match = text.match(/^([A-Za-z_]\w*)\s*\(([^)]*)\)\s*(?::\s*(.+))?$/);
+        const name = pythonMemberName(match ? match[1] : text, pythonVisibility(raw));
+        const rawParameters = match ? match[2].trim() : '';
+        const parameters = rawParameters ? rawParameters.split(',').map((part, index) => {
+          const parameter = part.trim();
+          const namePart = parameter.split(/[:=]/)[0].trim();
+          const isTypeOnly = /^(Any|String|str|int|float|bool|list|dict|set|tuple|object|[A-Z]\w*)$/.test(namePart) && !/[:=]/.test(parameter);
+          const parameterName = isTypeOnly ? `arg${index + 1}` : pythonIdentifier(namePart, `arg${index + 1}`);
+          const annotation = parameter.includes(':') ? pythonTypeName(parameter.split(':').slice(1).join(':').split('=')[0], classNodes) : '';
+          const defaultValue = parameter.includes('=') ? ` = ${parameter.split('=').slice(1).join('=').trim()}` : '';
+          return `${parameterName}${annotation ? `: ${annotation}` : ''}${defaultValue}`;
+        }) : [];
+        return {name, parameters, returnType: pythonTypeName(match && match[3], classNodes)};
+      });
+    }
+
+    function orderedPythonClasses(classNodes) {
+      const byId = new Map(classNodes.map(node => [node.id, node]));
+      const result = [], visiting = new Set(), visited = new Set();
+      function visit(node) {
+        if (!node || visited.has(node.id) || visiting.has(node.id)) return;
+        visiting.add(node.id);
+        state.edges.filter(edge => edge.type === 'inheritance' && edge.from === node.id).forEach(edge => visit(byId.get(edge.to)));
+        visiting.delete(node.id);
+        visited.add(node.id);
+        result.push(node);
+      }
+      classNodes.forEach(visit);
+      return result;
+    }
+
     function pumlFlowDeclaration(node) {
       const shape = node.shape ? `\\n[${node.shape}]` : '';
       return `rectangle "${pumlQuote(node.name || 'Unnamed')}${shape}" as ${pumlNodeRef(node)}`;
+    }
+
+    function serializePython() {
+      const classNodes = state.nodes.filter(node => !node.diagramKind || node.diagramKind === 'class');
+      if (!classNodes.length) return '# Ingen klasser findes i diagrammet endnu.\n';
+      const names = pythonClassNameMap(classNodes);
+      const abstractUsed = classNodes.some(node => node.type === 'abstract' || node.type === 'interface');
+      const output = ['from __future__ import annotations', ''];
+      if (abstractUsed) output.push('from abc import ABC, abstractmethod', '');
+
+      orderedPythonClasses(classNodes).forEach((node, classIndex) => {
+        const bases = [];
+        state.edges.filter(edge => edge.type === 'inheritance' && edge.from === node.id).forEach(edge => {
+          const parent = names.get(edge.to);
+          if (parent && !bases.includes(parent)) bases.push(parent);
+        });
+        if ((node.type === 'abstract' || node.type === 'interface') && !bases.includes('ABC')) bases.push('ABC');
+        output.push(`class ${names.get(node.id)}${bases.length ? `(${bases.join(', ')})` : ''}:`);
+
+        const attributes = pythonAttributeData(node, classNodes);
+        const attributeNames = new Set(attributes.map(attribute => attribute.name));
+        const relationships = state.edges.filter(edge => edge.from === node.id && edge.type !== 'inheritance').map(edge => {
+          const target = names.get(edge.to);
+          if (!target) return null;
+          const fieldName = uniquePythonIdentifier(target.charAt(0).toLowerCase() + target.slice(1), 'related', attributeNames);
+          return {type: edge.type, target, fieldName};
+        }).filter(Boolean);
+        const methods = pythonMethodData(node, classNodes);
+        const hasInit = methods.some(method => method.name === '__init__');
+        if (attributes.length || relationships.length) {
+          if (!hasInit) methods.unshift({name: '__init__', parameters: [], returnType: ''});
+        }
+        if (!attributes.length && !relationships.length && !methods.length) output.push('    pass');
+        else methods.forEach(method => {
+          if (node.type === 'interface' && method.name !== '__init__') output.push('    @abstractmethod');
+          output.push(`    def ${method.name}(self${method.parameters.length ? ', ' + method.parameters.join(', ') : ''})${method.returnType ? ` -> ${method.returnType}` : ''}:`);
+          if (method.name === '__init__') {
+            attributes.forEach(attribute => output.push(`        self.${attribute.name}${attribute.type ? `: ${attribute.type}` : ''} = ${attribute.defaultValue}`));
+            relationships.forEach(relation => {
+              output.push(`        # ${relation.type} -> ${relation.target}`);
+              output.push(`        self.${relation.fieldName}: ${relation.target} = None`);
+            });
+          }
+          output.push('        pass');
+          output.push('');
+        });
+        if (classIndex < classNodes.length - 1) output.push('');
+      });
+      return output.join('\n').replace(/\n{3,}/g, '\n\n').trim() + '\n';
     }
 
     function serializePuml() {
@@ -865,6 +1008,15 @@ if ready:
       return (line.match(/^\s*/) || [''])[0].replace(/\t/g, '    ').length;
     }
 
+    function umlMemberName(name) {
+      const cleanName = String(name || '').trim();
+      if (!cleanName) return '+';
+      if (cleanName === '__init__' || /^__.*__$/.test(cleanName)) return `+${cleanName}`;
+      if (cleanName.startsWith('__')) return `-${cleanName.slice(2)}`;
+      if (cleanName.startsWith('_')) return `#${cleanName.slice(1)}`;
+      return `+${cleanName}`;
+    }
+
     function pythonClassData(source) {
       const sourceLines = String(source || '').replace(/\r/g, '').split('\n');
       const starts = [];
@@ -885,13 +1037,13 @@ if ready:
           const text = raw.trim();
           const indent = pythonIndent(raw);
           if (indent === item.indent + 4) {
-            const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::|=)/);
-            if (attribute && !/^(if|for|while|try|with|return|raise|assert)\b/.test(attribute[1])) attributes.add(attribute[1]);
-            const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/);
-            if (method) methods.push(`${method[1]}(${method[2].replace(/\b(self|cls)\s*,?\s*/g, '').trim()})`);
+            const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::\s*([^=]+))?(?:\s*=|$)/);
+            if (attribute && !/^(if|for|while|try|with|return|raise|assert)\b/.test(attribute[1])) attributes.add(umlMemberName(attribute[1]));
+            const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?\s*:/);
+            if (method) methods.push(`${umlMemberName(method[1])}(${method[2].replace(/\b(self|cls)\s*,?\s*/g, '').trim()})${method[3] ? `: ${method[3].trim()}` : ''}`);
           }
-          const selfAttribute = text.match(/\bself\.([A-Za-z_]\w*)\s*(?::|=)/);
-          if (selfAttribute) attributes.add(selfAttribute[1]);
+          const selfAttribute = text.match(/\bself\.([A-Za-z_]\w*)\s*(?::\s*([^=]+?))?\s*(?:=|$)/);
+          if (selfAttribute) attributes.add(`${umlMemberName(selfAttribute[1])}${selfAttribute[2] ? `: ${selfAttribute[2].trim()}` : ''}`);
         });
         return {...item, body: body.join('\n'), attributes: [...attributes], methods, classIndex};
       });
@@ -901,10 +1053,10 @@ if ready:
         sourceLines.forEach(raw => {
           const text = raw.trim();
           if (pythonIndent(raw) !== 0) return;
-          const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::|=)/);
-          const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)/);
-          if (attribute) attributes.push(attribute[1]);
-          if (method) methods.push(`${method[1]}(${method[2]})`);
+          const attribute = text.match(/^([A-Za-z_]\w*)\s*(?::\s*([^=]+))?(?:\s*=|$)/);
+          const method = text.match(/^def\s+([A-Za-z_]\w*)\s*\(([^)]*)\)(?:\s*->\s*([^:]+))?\s*:/);
+          if (attribute) attributes.push(`${umlMemberName(attribute[1])}${attribute[2] ? `: ${attribute[2].trim()}` : ''}`);
+          if (method) methods.push(`${umlMemberName(method[1])}(${method[2]})${method[3] ? `: ${method[3].trim()}` : ''}`);
         });
         classes.push({name: 'PythonModule', bases: [], body: source, attributes: [...new Set(attributes)], methods});
       }
@@ -1106,13 +1258,35 @@ if ready:
       }
     }
 
+    function configurePythonDialog(fromDiagram) {
+      document.getElementById('pythonDialogTitle').textContent = fromDiagram ? 'Klassediagram til Python' : 'Python til diagram';
+      document.getElementById('pythonDialogDescription').textContent = fromDiagram
+        ? 'Her er Python-koden genereret ud fra det aktuelle klassediagram. Du kan redigere den direkte i editoren.'
+        : 'Indsæt Python-kode. Vælg automatisk for at lave et klassediagram, hvis koden indeholder klasser, ellers et flowdiagram.';
+      document.getElementById('pythonTypeField').hidden = fromDiagram;
+      document.getElementById('generatePythonBtn').textContent = fromDiagram ? 'Generér diagram fra Python' : 'Generér diagram';
+    }
+
     function openPythonDialog() {
+      configurePythonDialog(false);
       const dialog = document.getElementById('pythonDialog');
       const source = document.getElementById('pythonSource');
       document.getElementById('pythonError').hidden = true;
       dialog.hidden = false;
       updatePythonHighlight();
       source.focus();
+    }
+
+    function openPythonFromDiagramDialog() {
+      configurePythonDialog(true);
+      const dialog = document.getElementById('pythonDialog');
+      const source = document.getElementById('pythonSource');
+      document.getElementById('pythonError').hidden = true;
+      source.value = serializePython();
+      dialog.hidden = false;
+      updatePythonHighlight();
+      source.focus();
+      setStatus('Python-kode genereret fra klassediagrammet.');
     }
 
     function closePythonDialog() { document.getElementById('pythonDialog').hidden = true; }
@@ -1272,6 +1446,7 @@ if ready:
     document.getElementById('openJsonBtn').addEventListener('click', () => document.getElementById('jsonFile').click());
     document.getElementById('openPumlBtn').addEventListener('click', () => document.getElementById('pumlFile').click());
     document.getElementById('pythonBtn').addEventListener('click', openPythonDialog);
+    document.getElementById('pythonFromDiagramBtn').addEventListener('click', openPythonFromDiagramDialog);
     document.getElementById('cancelPythonBtn').addEventListener('click', closePythonDialog);
     document.getElementById('generatePythonBtn').addEventListener('click', generateFromPythonInput);
     document.getElementById('pythonDialog').addEventListener('click', event => {
