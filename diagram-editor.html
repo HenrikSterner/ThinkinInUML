@@ -343,12 +343,27 @@ if ready:
       while (node.firstChild) node.removeChild(node.firstChild);
     }
 
+    function findAncestor(target, selector) {
+      let node = target;
+      while (node && node !== document) {
+        const matches = node.matches || node.webkitMatchesSelector;
+        if (node.nodeType === 1 && matches && matches.call(node, selector)) return node;
+        node = node.parentNode;
+      }
+      return null;
+    }
+
+    function capturePointer(event) {
+      if (event.pointerId == null || typeof canvas.setPointerCapture !== 'function') return;
+      try { canvas.setPointerCapture(event.pointerId); } catch (error) { /* Safari may reject capture on SVG. */ }
+    }
+
     function htmlEscape(value) {
-      return String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
+      return String(value == null ? '' : value).replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#039;'}[c]));
     }
 
     function lines(value) {
-      return String(value ?? '').split(/\r?\n/).map(s => s.trim()).filter(Boolean);
+      return String(value == null ? '' : value).split(/\r?\n/).map(s => s.trim()).filter(Boolean);
     }
 
     function nodeHeight(node) {
@@ -413,10 +428,10 @@ if ready:
       // coordinate, but constrain the other coordinate to an endpoint.
       if (startHorizontal === endHorizontal) {
         if (startHorizontal) {
-          const x = snap(Number.isFinite(Number(points[0]?.x)) ? Number(points[0].x) : (s.x + t.x) / 2);
+          const x = snap(Number.isFinite(Number(points[0] && points[0].x)) ? Number(points[0].x) : (s.x + t.x) / 2);
           return [{x, y: s.y}, {x, y: t.y}];
         }
-        const y = snap(Number.isFinite(Number(points[0]?.y)) ? Number(points[0].y) : (s.y + t.y) / 2);
+        const y = snap(Number.isFinite(Number(points[0] && points[0].y)) ? Number(points[0].y) : (s.y + t.y) / 2);
         return [{x: s.x, y}, {x: t.x, y}];
       }
 
@@ -490,7 +505,7 @@ if ready:
       for (const edge of state.edges) {
         const points = edgePoints(edge);
         if (points.length < 2) continue;
-        const group = el('g', {'data-edge-id': edge.id, class: `edge${state.selected?.kind === 'edge' && state.selected.id === edge.id ? ' selected' : ''}`});
+        const group = el('g', {'data-edge-id': edge.id, class: `edge${state.selected && state.selected.kind === 'edge' && state.selected.id === edge.id ? ' selected' : ''}`});
         const hit = el('path', {d: pathData(points), class: 'edge-hit', fill: 'none', stroke: 'transparent', 'stroke-width': 14, 'data-edge-id': edge.id});
         const lineAttrs = {d: pathData(points), class: 'edge-line', fill: 'none', 'data-edge-id': edge.id};
         const endMarker = markerFor(edge.type);
@@ -504,7 +519,7 @@ if ready:
         }
         edgesLayer.append(group);
 
-        if (state.selected?.kind === 'edge' && state.selected.id === edge.id) {
+        if (state.selected && state.selected.kind === 'edge' && state.selected.id === edge.id) {
           points.forEach((point, index) => {
             const handle = el('circle', {cx: point.x, cy: point.y, r: index === 0 || index === points.length - 1 ? 6 : 5, class: `handle${index === 0 || index === points.length - 1 ? ' endpoint' : ''}`, 'data-edge-id': edge.id, 'data-point-index': index});
             handlesLayer.append(handle);
@@ -517,7 +532,7 @@ if ready:
         const attrs = lines(node.attributes);
         const methods = lines(node.methods);
         const sections = [attrs, methods].filter(section => section.length);
-        const group = el('g', {class: `node ${node.type}${node.diagramKind ? ` ${node.diagramKind}` : ''}${state.selected?.kind === 'node' && state.selected.id === node.id ? ' selected' : ''}`, 'data-node-id': node.id});
+        const group = el('g', {class: `node ${node.type}${node.diagramKind ? ` ${node.diagramKind}` : ''}${state.selected && state.selected.kind === 'node' && state.selected.id === node.id ? ' selected' : ''}`, 'data-node-id': node.id});
         if (node.diagramKind === 'flow') {
           renderFlowNode(group, node, h);
         } else {
@@ -540,7 +555,7 @@ if ready:
     function setStatus(message) { statusEl.textContent = message; }
 
     function moveSelectedNode(dx, dy) {
-      if (state.selected?.kind !== 'node') return false;
+      if (!state.selected || state.selected.kind !== 'node') return false;
       const node = nodeById(state.selected.id);
       if (!node) return false;
       node.x = Math.max(10, Number(node.x) + dx);
@@ -597,7 +612,7 @@ if ready:
       if (!edge) return;
       const options = Object.entries(typeNames).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
       inspector.innerHTML = `
-        <div class="section"><h2>Pil / relation</h2><p class="selection-note">Valgt: ${htmlEscape(nodeById(edge.from)?.name || '?')} → ${htmlEscape(nodeById(edge.to)?.name || '?')}</p>
+        <div class="section"><h2>Pil / relation</h2><p class="selection-note">Valgt: ${htmlEscape((nodeById(edge.from) || {}).name || '?')} → ${htmlEscape((nodeById(edge.to) || {}).name || '?')}</p>
           <div class="field"><label for="edgeType">Type</label><select id="edgeType">${options}</select></div>
           <div class="field"><label for="edgeFrom">Fra</label><select id="edgeFrom">${state.nodes.map(n => `<option value="${n.id}">${htmlEscape(n.name)}</option>`).join('')}</select></div>
           <div class="field"><label for="edgeTo">Til</label><select id="edgeTo">${state.nodes.map(n => `<option value="${n.id}">${htmlEscape(n.name)}</option>`).join('')}</select></div>
@@ -710,7 +725,7 @@ if ready:
     }
 
     function pumlQuote(value) {
-      return String(value ?? '').replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
+      return String(value == null ? '' : value).replace(/\\/g, '\\\\').replace(/"/g, '\\"').replace(/\r?\n/g, '\\n');
     }
 
     function pumlNodeRef(node) { return node ? node.id : ''; }
@@ -1175,19 +1190,19 @@ if ready:
       image.src = url;
     }
 
-    canvas.addEventListener('pointerdown', event => {
+    function handleCanvasDown(event) {
       const point = pointFromEvent(event);
-      const handle = event.target.closest?.('[data-edge-id][data-point-index]');
+      const handle = findAncestor(event.target, '[data-edge-id][data-point-index]');
       if (handle) {
         const edge = edgeById(handle.dataset.edgeId);
         select('edge', edge.id);
         state.dragging = {kind: 'handle', edge, index: Number(handle.dataset.pointIndex)};
-        canvas.setPointerCapture(event.pointerId);
+        capturePointer(event);
         event.stopPropagation();
         return;
       }
-      const nodeEl = event.target.closest?.('[data-node-id]');
-      const edgeEl = event.target.closest?.('[data-edge-id]');
+      const nodeEl = findAncestor(event.target, '[data-node-id]');
+      const edgeEl = findAncestor(event.target, '[data-edge-id]');
       if (state.mode === 'class' && !nodeEl && !edgeEl) {
         addNode(point.x - 120, point.y - 30); setMode('select'); return;
       }
@@ -1200,15 +1215,15 @@ if ready:
         }
         select('node', node.id);
         state.dragging = {kind: 'node', node, dx: point.x - node.x, dy: point.y - node.y};
-        canvas.setPointerCapture(event.pointerId);
+        capturePointer(event);
         return;
       }
       if (edgeEl) { select('edge', edgeEl.dataset.edgeId); return; }
       if (state.mode === 'relation') { setStatus('Klik på en klasse som kilde.'); return; }
       select(null, null);
-    });
+    }
 
-    canvas.addEventListener('pointermove', event => {
+    function handleCanvasMove(event) {
       if (!state.dragging) return;
       const point = pointFromEvent(event);
       if (state.dragging.kind === 'node') {
@@ -1232,11 +1247,19 @@ if ready:
         }
         render();
       }
-    });
-    canvas.addEventListener('pointerup', () => { state.dragging = null; });
+    }
+
+    const inputEventPrefix = typeof window.PointerEvent === 'function' ? 'pointer' : 'mouse';
+    canvas.addEventListener(inputEventPrefix + 'down', handleCanvasDown);
+    document.addEventListener(inputEventPrefix + 'move', handleCanvasMove);
+    document.addEventListener(inputEventPrefix + 'up', () => { state.dragging = null; });
     canvas.addEventListener('dblclick', event => {
-      const nodeEl = event.target.closest?.('[data-node-id]');
-      if (nodeEl) { select('node', nodeEl.dataset.nodeId); document.getElementById('nodeName')?.focus(); }
+      const nodeEl = findAncestor(event.target, '[data-node-id]');
+      if (nodeEl) {
+        select('node', nodeEl.dataset.nodeId);
+        const nodeName = document.getElementById('nodeName');
+        if (nodeName) nodeName.focus();
+      }
     });
 
     document.getElementById('selectTool').addEventListener('click', () => setMode('select'));
