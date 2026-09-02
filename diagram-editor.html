@@ -66,6 +66,13 @@
     }
     .tool-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
     .tool-grid button { min-height: 40px; }
+    .flow-palette { display: grid; gap: 6px; }
+    .flow-symbol { display: flex; align-items: center; gap: 8px; min-height: 42px; text-align: left; }
+    .flow-symbol::before { display: inline-block; width: 28px; height: 20px; border: 1.5px solid currentColor; content: ''; flex: 0 0 auto; }
+    .flow-symbol[data-flow-shape="terminator"]::before { border-radius: 50%; }
+    .flow-symbol[data-flow-shape="io"]::before { transform: skew(-18deg); }
+    .flow-symbol[data-flow-shape="decision"]::before { width: 18px; height: 18px; transform: rotate(45deg); }
+    .flow-symbol[data-flow-shape="subroutine"]::before { box-shadow: inset 4px 0 0 white, inset -4px 0 0 white; }
     .help { color: #555; font-size: 13px; line-height: 1.45; margin: 10px 0 0; }
     .help kbd { border: 1px solid #bbb; border-radius: 3px; background: white; padding: 1px 4px; }
     .canvas-wrap { min-width: 0; min-height: 0; overflow: auto; background: #dcdcdc; }
@@ -210,22 +217,47 @@
     <div class="workspace">
       <aside class="sidebar">
         <div class="section">
+          <h2>Diagramtype</h2>
+          <div class="tool-grid">
+            <button id="classDiagramTool" class="active">Klasser</button>
+            <button id="flowDiagramTool">Rutediagram</button>
+          </div>
+        </div>
+        <div class="section">
           <h2>Værktøjer</h2>
           <div class="tool-grid">
             <button id="selectTool" class="active">Vælg</button>
             <button id="classTool">+ Klasse</button>
             <button id="relationTool">+ Pil</button>
           </div>
-          <p class="help">
+          <p class="help" id="classHelp">
             Når en klasse er valgt, flytter piletasterne den 1 pixel ad gangen. Hold <kbd>Shift</kbd> nede for 10 pixels.<br><br>
             Træk klasserne med musen. Vælg <b>+ Pil</b>, klik på en kildeklasse og derefter på målklassen.<br><br>
             Valgte pile kan justeres ved at trække de blå håndtag. Brug <kbd>Delete</kbd> til at slette det valgte.
           </p>
+          <p class="help" id="flowHelp" hidden>
+            Dobbeltklik på et symbol eller brug panelet til højre for at ændre teksten.<br><br>
+            I feltet <b>Python-kodestump</b> kan du skrive den kode, symbolet skal give i Python.
+            Der vises et eksempel som placeholder for hvert symbol.<br><br>
+            Vælg et symbol, hold <kbd>Ctrl</kbd> nede og tryk på en piletast for at sætte en pil til det nærmeste symbol i den retning.<br><br>
+            Brug <kbd>Delete</kbd> til at slette det valgte symbol eller den valgte pil.
+          </p>
+        </div>
+        <div class="section" id="flowPaletteSection" hidden>
+          <h2>Rutediagram-symboler</h2>
+          <div class="flow-palette">
+            <button class="flow-symbol" draggable="true" data-flow-shape="terminator">Start/slut</button>
+            <button class="flow-symbol" draggable="true" data-flow-shape="io">Input/output</button>
+            <button class="flow-symbol" draggable="true" data-flow-shape="process">Proces</button>
+            <button class="flow-symbol" draggable="true" data-flow-shape="decision">Beslutning</button>
+            <button class="flow-symbol" draggable="true" data-flow-shape="subroutine">Delrutine</button>
+          </div>
+          <p class="help">Træk et symbol ind på lærredet. Forbind symbolerne med <b>+ Pil</b>.</p>
         </div>
         <div class="section">
-          <h2>Relationstyper</h2>
-          <p class="muted">Alle pile holdes rette med højst 2 knæk.</p>
-          <p class="muted">Arv bruger åben trekant. Aggregation bruger diamant. Alle nye pile får et ortogonalt layout.</p>
+          <h2 id="relationHeading">Relationstyper</h2>
+          <p class="muted" id="relationHelp">Alle pile holdes rette med højst 2 knæk.</p>
+          <p class="muted" id="relationDetail">Arv bruger åben trekant. Aggregation bruger diamant. Alle nye pile får et ortogonalt layout.</p>
         </div>
         <div class="section">
           <h2>Format</h2>
@@ -319,6 +351,7 @@ if ready:
     const state = {
       version: 1,
       themeName: 'thinkjava.puml',
+      diagramKind: 'class',
       mode: 'select',
       relationStart: null,
       selected: null,
@@ -327,6 +360,20 @@ if ready:
       nextEdge: 1,
       nodes: [],
       edges: []
+    };
+
+    const flowShapeNames = {
+      terminator: 'Start/slut',
+      io: 'Input/output',
+      process: 'Proces',
+      decision: 'Beslutning',
+      subroutine: 'Delrutine'
+    };
+    const flowCodePlaceholders = {
+      io: 'navn = input("Skriv dit navn: ")\nprint(navn)',
+      process: 'total = total + 1',
+      decision: 'total > 10',
+      subroutine: 'beregn_resultat()'
     };
 
     const typeNames = {
@@ -493,6 +540,10 @@ if ready:
       } else if (shape === 'io') {
         const skew = Math.min(30, w / 6);
         group.append(el('polygon', {...shapeAttrs, points: `${x + skew},${y} ${x + w},${y} ${x + w - skew},${y + h} ${x},${y + h}`}));
+      } else if (shape === 'subroutine') {
+        group.append(el('rect', {...shapeAttrs, x, y, width: w, height: h}));
+        group.append(el('line', {x1: x + 9, y1: y, x2: x + 9, y2: y + h, stroke: 'currentColor', 'stroke-width': 1.5}));
+        group.append(el('line', {x1: x + w - 9, y1: y, x2: x + w - 9, y2: y + h, stroke: 'currentColor', 'stroke-width': 1.5}));
       } else {
         group.append(el('rect', {...shapeAttrs, x, y, width: w, height: h, rx: 2, ry: 2}));
       }
@@ -559,6 +610,26 @@ if ready:
 
     function setStatus(message) { statusEl.textContent = message; }
 
+    function updateDiagramKindUI() {
+      const isFlow = state.diagramKind === 'flow';
+      document.getElementById('classDiagramTool').classList.toggle('active', !isFlow);
+      document.getElementById('flowDiagramTool').classList.toggle('active', isFlow);
+      document.getElementById('flowPaletteSection').hidden = !isFlow;
+      document.getElementById('classTool').hidden = isFlow;
+      document.getElementById('classHelp').hidden = isFlow;
+      document.getElementById('flowHelp').hidden = !isFlow;
+      document.getElementById('relationHeading').textContent = isFlow ? 'Forbindelser' : 'Relationstyper';
+      document.getElementById('relationDetail').textContent = isFlow ? 'Flowpile får automatisk en pilspids og holdes ortogonale.' : 'Arv bruger åben trekant. Aggregation bruger diamant. Alle nye pile får et ortogonalt layout.';
+      canvas.setAttribute('aria-label', isFlow ? 'Rutediagram' : 'Klassediagram');
+    }
+
+    function setDiagramKind(kind) {
+      state.diagramKind = kind === 'flow' ? 'flow' : 'class';
+      updateDiagramKindUI();
+      if (state.mode === 'class') setMode('select');
+      setStatus(state.diagramKind === 'flow' ? 'Rutediagram valgt. Træk et symbol ind på lærredet.' : 'Klassediagram valgt.');
+    }
+
     function moveSelectedNode(dx, dy) {
       if (!state.selected || state.selected.kind !== 'node') return false;
       const node = nodeById(state.selected.id);
@@ -581,7 +652,11 @@ if ready:
       document.getElementById('selectTool').classList.toggle('active', mode === 'select');
       document.getElementById('classTool').classList.toggle('active', mode === 'class');
       document.getElementById('relationTool').classList.toggle('active', mode === 'relation');
-      setStatus(mode === 'class' ? 'Klik på lærredet for at placere en ny klasse.' : mode === 'relation' ? 'Klik på kildeklassen og derefter på målklassen.' : 'Vælg en klasse eller en pil.');
+      if (mode === 'class' && state.diagramKind === 'flow') {
+        setStatus('Træk et symbol ind på lærredet.');
+        return;
+      }
+      setStatus(mode === 'class' ? 'Klik på lærredet for at placere en ny klasse.' : mode === 'relation' ? `Klik på ${state.diagramKind === 'flow' ? 'kildesymbolet' : 'kildeklassen'} og derefter på ${state.diagramKind === 'flow' ? 'målsymbolet' : 'målklassen'}.` : `Vælg ${state.diagramKind === 'flow' ? 'et symbol eller en pil' : 'en klasse eller en pil'}.`);
     }
 
     function renderInspector() {
@@ -595,6 +670,10 @@ if ready:
 
     function renderNodeInspector(node) {
       if (!node) return;
+      if (node.diagramKind === 'flow') {
+        renderFlowNodeInspector(node);
+        return;
+      }
       inspector.innerHTML = `
         <div class="section"><h2>Klasse</h2><p class="selection-note">Valgt: ${htmlEscape(node.name || 'Unnamed')}</p>
           <div class="field"><label for="nodeName">Navn</label><input id="nodeName" value="${htmlEscape(node.name)}"></div>
@@ -610,6 +689,27 @@ if ready:
       document.getElementById('nodeWidth').addEventListener('input', e => { node.w = Math.max(150, Math.min(650, Number(e.target.value) || 220)); render(); });
       document.getElementById('nodeAttrs').addEventListener('input', e => { node.attributes = e.target.value; render(); });
       document.getElementById('nodeMethods').addEventListener('input', e => { node.methods = e.target.value; render(); });
+      document.getElementById('deleteNodeBtn').addEventListener('click', () => deleteNode(node.id));
+    }
+
+    function renderFlowNodeInspector(node) {
+      const options = Object.entries(flowShapeNames).map(([value, label]) => `<option value="${value}">${label}</option>`).join('');
+      const codePlaceholder = flowCodePlaceholders[node.shape] || '';
+      const codeField = node.shape === 'terminator' ? '' : `<div class="field"><label for="nodeCode">Python-kodestump</label><textarea id="nodeCode" placeholder="${htmlEscape(codePlaceholder)}">${htmlEscape(node.code || '')}</textarea></div>`;
+      inspector.innerHTML = `
+        <div class="section"><h2>Rutediagram-symbol</h2><p class="selection-note">Valgt: ${htmlEscape(node.name || 'Uden navn')}</p>
+          <div class="field"><label for="nodeName">Tekst</label><input id="nodeName" value="${htmlEscape(node.name)}"></div>
+          <div class="field"><label for="nodeShape">Symbol</label><select id="nodeShape">${options}</select></div>
+          <div class="field"><label for="nodeWidth">Bredde</label><input id="nodeWidth" type="number" min="150" max="650" step="10" value="${node.w}"></div>
+          ${codeField}
+          <button id="deleteNodeBtn" class="danger">Slet symbol</button>
+        </div>`;
+      document.getElementById('nodeShape').value = node.shape || 'process';
+      document.getElementById('nodeName').addEventListener('input', e => { node.name = e.target.value; render(); });
+      document.getElementById('nodeShape').addEventListener('change', e => { node.shape = e.target.value; renderInspector(); render(); });
+      document.getElementById('nodeWidth').addEventListener('input', e => { node.w = Math.max(150, Math.min(650, Number(e.target.value) || 240)); render(); });
+      const codeInput = document.getElementById('nodeCode');
+      if (codeInput) codeInput.addEventListener('input', e => { node.code = e.target.value; });
       document.getElementById('deleteNodeBtn').addEventListener('click', () => deleteNode(node.id));
     }
 
@@ -672,10 +772,76 @@ if ready:
     }
 
     function addNode(x, y, values = {}) {
-      const node = {id: `n${state.nextNode++}`, name: values.name || 'NyKlasse', type: values.type || 'class', attributes: values.attributes || '', methods: values.methods || '', x: snap(x), y: snap(y), w: values.w || 240};
+      const diagramKind = values.diagramKind || state.diagramKind || 'class';
+      const node = {id: `n${state.nextNode++}`, name: values.name || (diagramKind === 'flow' ? 'Proces' : 'NyKlasse'), type: values.type || 'class', diagramKind, shape: values.shape || (diagramKind === 'flow' ? 'process' : ''), code: values.code || '', attributes: values.attributes || '', methods: values.methods || '', x: snap(x), y: snap(y), w: values.w || 240};
       state.nodes.push(node);
       select('node', node.id);
       return node;
+    }
+
+    function addFlowNodeAt(shape, x, y) {
+      if (!flowShapeNames[shape]) return;
+      const width = 280;
+      const name = shape === 'terminator' ? 'Start/slut' : flowShapeNames[shape];
+      setDiagramKind('flow');
+      addNode(x - width / 2, y - 32, {name, diagramKind: 'flow', shape, w: width});
+      setMode('select');
+      setStatus(`${flowShapeNames[shape]} tilføjet. Redigér teksten i panelet til højre.`);
+    }
+
+    function handleFlowDragStart(event) {
+      const shape = event.currentTarget.dataset.flowShape;
+      event.dataTransfer.effectAllowed = 'copy';
+      event.dataTransfer.setData('application/x-thinkin-flow-shape', shape);
+      event.dataTransfer.setData('text/plain', shape);
+    }
+
+    function handleCanvasDragOver(event) {
+      const types = Array.from(event.dataTransfer.types || []);
+      if (types.includes('application/x-thinkin-flow-shape') || types.includes('text/plain')) {
+        event.preventDefault();
+        event.dataTransfer.dropEffect = 'copy';
+      }
+    }
+
+    function handleCanvasDrop(event) {
+      const shape = event.dataTransfer.getData('application/x-thinkin-flow-shape') || event.dataTransfer.getData('text/plain');
+      if (!flowShapeNames[shape]) return;
+      event.preventDefault();
+      const point = pointFromEvent(event);
+      addFlowNodeAt(shape, point.x, point.y);
+    }
+
+    function connectSelectedFlowNode(direction) {
+      if (!state.selected || state.selected.kind !== 'node') return false;
+      const source = nodeById(state.selected.id);
+      if (!source || source.diagramKind !== 'flow') return false;
+      const sourceCenter = {x: source.x + source.w / 2, y: source.y + nodeHeight(source) / 2};
+      const directions = {
+        ArrowLeft: {axis: 'x', sign: -1}, ArrowRight: {axis: 'x', sign: 1},
+        ArrowUp: {axis: 'y', sign: -1}, ArrowDown: {axis: 'y', sign: 1}
+      };
+      const selectedDirection = directions[direction];
+      if (!selectedDirection) return false;
+      const candidates = state.nodes.filter(node => node.diagramKind === 'flow' && node.id !== source.id).map(node => {
+        const targetCenter = {x: node.x + node.w / 2, y: node.y + nodeHeight(node) / 2};
+        const along = (targetCenter[selectedDirection.axis] - sourceCenter[selectedDirection.axis]) * selectedDirection.sign;
+        const otherAxis = selectedDirection.axis === 'x' ? 'y' : 'x';
+        const across = Math.abs(targetCenter[otherAxis] - sourceCenter[otherAxis]);
+        return {node, score: along + across * 2, along};
+      }).filter(candidate => candidate.along > 0).sort((a, b) => a.score - b.score);
+      const target = candidates[0] && candidates[0].node;
+      if (!target) { setStatus('Der er ikke noget flow-symbol i den retning.'); return true; }
+      const existing = state.edges.find(edge => edge.from === source.id && edge.to === target.id);
+      if (existing) {
+        select('edge', existing.id);
+        setStatus('Pilen mellem symbolerne er allerede oprettet.');
+        return true;
+      }
+      const edge = addEdge(source.id, target.id, 'dependency');
+      setStatus(`Pil oprettet: ${source.name} → ${target.name}.`);
+      select('edge', edge.id);
+      return true;
     }
 
     function addEdge(from, to, type = 'association') {
@@ -691,11 +857,13 @@ if ready:
     function blankDiagram() {
       state.nodes = [];
       state.edges = [];
+      state.diagramKind = 'class';
       state.nextNode = 1;
       state.nextEdge = 1;
       state.selected = null;
       renderInspector();
       render();
+      updateDiagramKindUI();
       setMode('select');
       setStatus('Nyt tomt diagram. Brug + Klasse eller åbn en PlantUML-fil.');
     }
@@ -703,6 +871,7 @@ if ready:
     function starter() {
       state.nodes = [];
       state.edges = [];
+      state.diagramKind = 'class';
       state.nextNode = 1;
       state.nextEdge = 1;
       const data = [
@@ -721,12 +890,13 @@ if ready:
       state.selected = null;
       renderInspector();
       render();
+      updateDiagramKindUI();
       setMode('select');
       setStatus('Startdiagram indlæst fra fish.puml med thinkjava-stilen.');
     }
 
     function serialize() {
-      return JSON.stringify({version: state.version, themeName: state.themeName, nextNode: state.nextNode, nextEdge: state.nextEdge, nodes: state.nodes, edges: state.edges}, null, 2);
+      return JSON.stringify({version: state.version, themeName: state.themeName, diagramKind: state.diagramKind, nextNode: state.nextNode, nextEdge: state.nextEdge, nodes: state.nodes, edges: state.edges}, null, 2);
     }
 
     function pumlQuote(value) {
@@ -861,8 +1031,78 @@ if ready:
       });
     }
 
+    function flowNodeText(node) {
+      return String(node.name || '').replace(/\s+\[linje\s+\d+\]$/i, '').trim();
+    }
+
+    function flowPythonOrder(flowNodes) {
+      const byId = new Map(flowNodes.map(node => [node.id, node]));
+      const outgoing = new Map(flowNodes.map(node => [node.id, []]));
+      const incoming = new Set();
+      state.edges.forEach(edge => {
+        if (!byId.has(edge.from) || !byId.has(edge.to)) return;
+        outgoing.get(edge.from).push(edge);
+        incoming.add(edge.to);
+      });
+      const starts = flowNodes.filter(node => (node.shape === 'terminator' && /start/i.test(flowNodeText(node))) || !incoming.has(node.id));
+      const result = [], visited = new Set();
+      function visit(node) {
+        if (!node || visited.has(node.id)) return;
+        visited.add(node.id);
+        result.push(node);
+        outgoing.get(node.id).forEach(edge => visit(byId.get(edge.to)));
+      }
+      starts.forEach(visit);
+      flowNodes.forEach(visit);
+      return result;
+    }
+
+    function flowPythonStatement(node) {
+      const text = flowNodeText(node);
+      if (!text || node.shape === 'terminator') return null;
+      const code = String(node.code || '').trim();
+      if (node.shape === 'subroutine') return code || `${pythonIdentifier(text, 'delrutine')}()`;
+      if (node.shape === 'decision') {
+        const condition = (code || text).replace(/^if\s+/i, '').replace(/:$/, '').trim();
+        return `if ${condition && condition !== 'Beslutning' ? condition : 'condition'}:`;
+      }
+      if (node.shape === 'io') {
+        if (code) return code;
+        if (/^(input|read|laes)\s*\(/i.test(text) || /^(print|output|write|skriv)\s*\(/i.test(text)) return text;
+        if (/^(input|read|laes)\b/i.test(text)) return `value = input(${JSON.stringify(text.replace(/^(input|read|laes)\s*:??\s*/i, ''))})`;
+        if (/^(output|print|write|skriv)\b/i.test(text)) return `print(${JSON.stringify(text.replace(/^(output|print|write|skriv)\s*:??\s*/i, ''))})`;
+        return `# Input/output: ${text}`;
+      }
+      if (code) return code;
+      if (/^(?:[A-Za-z_]\w*\s*=|[A-Za-z_]\w*\s*\(|return\b|raise\b|pass\b|break\b|continue\b)/.test(text)) return text;
+      return `# Proces: ${text}`;
+    }
+
+    function serializeFlowPython() {
+      const flowNodes = state.nodes.filter(node => node.diagramKind === 'flow');
+      if (!flowNodes.length) return '# Ingen flowdiagram-symboler findes endnu.\n';
+      const ordered = flowPythonOrder(flowNodes);
+      const output = ['from __future__ import annotations', ''];
+      output.push('def main():');
+      const mainNodes = ordered;
+      if (!mainNodes.some(node => flowPythonStatement(node))) output.push('    pass');
+      mainNodes.forEach(node => {
+        const statement = flowPythonStatement(node);
+        if (!statement) return;
+        statement.split(/\r?\n/).forEach(line => output.push(`    ${line}`));
+        if (node.shape === 'decision') {
+          const branches = state.edges.filter(edge => edge.from === node.id && nodeById(edge.to));
+          branches.forEach(edge => output.push(`        # ${edge.label || 'gren'} -> ${flowNodeText(nodeById(edge.to))}`));
+          if (branches.length) output.push('        pass');
+        }
+      });
+      output.push('', "if __name__ == '__main__':", '    main()');
+      return output.join('\n') + '\n';
+    }
+
     function serializePython() {
       const classNodes = state.nodes.filter(node => !node.diagramKind || node.diagramKind === 'class');
+      if (state.diagramKind === 'flow') return serializeFlowPython();
       if (!classNodes.length) return '# Ingen klasser findes i diagrammet endnu.\n';
       const names = pythonClassNameMap(classNodes);
       const abstractUsed = classNodes.some(node => node.type === 'abstract' || node.type === 'interface');
@@ -961,12 +1201,13 @@ if ready:
       if (!Array.isArray(data.nodes) || !Array.isArray(data.edges)) throw new Error('JSON-filen mangler nodes eller edges.');
       state.nodes = data.nodes;
       state.edges = data.edges;
+      state.diagramKind = data.diagramKind || (state.nodes.some(node => node.diagramKind === 'flow') ? 'flow' : 'class');
       state.nextNode = data.nextNode || state.nodes.length + 1;
       state.nextEdge = data.nextEdge || state.edges.length + 1;
       state.themeName = data.themeName || 'thinkjava.puml';
       state.selected = null;
       themeBadge.textContent = `Tema: ${state.themeName} · ortho · monochrome`;
-      renderInspector(); render();
+      renderInspector(); render(); updateDiagramKindUI();
       setStatus('Diagram indlæst fra JSON.');
     }
 
@@ -1025,8 +1266,9 @@ if ready:
         state.nodes.push({id: byName[item.name].id, name: item.name, type: item.type, diagramKind: item.diagramKind || '', shape: item.shape || '', attributes: item.attributes.join('\n'), methods: item.methods.join('\n'), x: 80 + col * 370, y: 70 + row * 330, w: 270});
       });
       relations.forEach(([from, to, type]) => addEdge(byName[from].id, byName[to].id, type));
-      state.selected = null; renderInspector(); render(); setMode('select');
-      setStatus(`${found.length} klasser og ${relations.length} relationer indlæst fra PlantUML.`);
+      state.diagramKind = found.some(item => item.diagramKind === 'flow') ? 'flow' : 'class';
+      state.selected = null; renderInspector(); render(); updateDiagramKindUI(); setMode('select');
+      setStatus(`${found.length} ${state.diagramKind === 'flow' ? 'symboler' : 'klasser'} og ${relations.length} forbindelser indlæst fra PlantUML.`);
     }
 
     function pythonIndent(line) {
@@ -1089,7 +1331,7 @@ if ready:
     }
 
     function generatedNode(id, name, x, y, values = {}) {
-      return {id, name, type: values.type || 'class', diagramKind: values.diagramKind || '', shape: values.shape || '', attributes: values.attributes || '', methods: values.methods || '', x, y, w: values.w || 300};
+      return {id, name, type: values.type || 'class', diagramKind: values.diagramKind || '', shape: values.shape || '', code: values.code || '', attributes: values.attributes || '', methods: values.methods || '', x, y, w: values.w || 300};
     }
 
     function generatedEdge(nodes, id, from, to, type = 'dependency', label = '') {
@@ -1101,12 +1343,14 @@ if ready:
     function installGeneratedDiagram(nodes, edges, message) {
       state.nodes = nodes;
       state.edges = edges;
+      state.diagramKind = nodes.some(node => node.diagramKind === 'flow') ? 'flow' : 'class';
       state.nextNode = nodes.length + 1;
       state.nextEdge = edges.length + 1;
       state.selected = null;
       state.dragging = null;
       renderInspector();
       render();
+      updateDiagramKindUI();
       setMode('select');
       setStatus(message);
     }
@@ -1165,6 +1409,7 @@ if ready:
 
     function flowShape(item) {
       if (item.kind === 'start' || item.kind === 'end') return 'terminator';
+      if (item.kind === 'def') return 'subroutine';
       if (['if', 'elif', 'for', 'while', 'try', 'except', 'match', 'case'].includes(item.kind)) return 'decision';
       if (/\b(input|print)\s*\(/.test(item.text)) return 'io';
       return 'process';
@@ -1177,7 +1422,9 @@ if ready:
       const rowsPerColumn = 6;
       const nodes = allItems.map((item, index) => {
         const column = Math.floor(index / rowsPerColumn), row = index % rowsPerColumn;
-        return generatedNode(`n${index + 1}`, item.kind === 'start' || item.kind === 'end' ? item.text : `${flowLabel(item)}  [linje ${item.line}]`, 300 + column * 460, 50 + row * 145, {w: 360, diagramKind: 'flow', shape: flowShape(item)});
+        const shape = flowShape(item);
+        const displayName = item.kind === 'start' || item.kind === 'end' ? item.text : shape === 'subroutine' ? item.text.replace(/^def\s+/, '').replace(/\s*\([^)]*\)\s*:?.*$/, '') : `${flowLabel(item)}  [linje ${item.line}]`;
+        return generatedNode(`n${index + 1}`, displayName, 300 + column * 460, 50 + row * 145, {w: 360, diagramKind: 'flow', shape, code: shape === 'subroutine' ? `${pythonIdentifier(displayName, 'delrutine')}()` : item.text});
       });
       const edges = [], edgeKeys = new Set();
       let nextEdge = 1;
@@ -1287,9 +1534,10 @@ if ready:
     }
 
     function configurePythonDialog(fromDiagram) {
-      document.getElementById('pythonDialogTitle').textContent = fromDiagram ? 'Klassediagram til Python' : 'Python til diagram';
+      const flowDiagram = state.diagramKind === 'flow';
+      document.getElementById('pythonDialogTitle').textContent = fromDiagram ? (flowDiagram ? 'Rutediagram til Python' : 'Klassediagram til Python') : 'Python til diagram';
       document.getElementById('pythonDialogDescription').textContent = fromDiagram
-        ? 'Her er Python-koden genereret ud fra det aktuelle klassediagram. Du kan redigere den direkte i editoren.'
+        ? `Her er Python-koden genereret ud fra det aktuelle ${flowDiagram ? 'rutediagram' : 'klassediagram'}. Du kan redigere den direkte i editoren.`
         : 'Indsæt Python-kode. Vælg automatisk for at lave et klassediagram, hvis koden indeholder klasser, ellers et flowdiagram.';
       document.getElementById('pythonTypeField').hidden = fromDiagram;
       document.getElementById('generatePythonBtn').textContent = fromDiagram ? 'Generér diagram fra Python' : 'Generér diagram';
@@ -1314,7 +1562,7 @@ if ready:
       dialog.hidden = false;
       updatePythonHighlight();
       source.focus();
-      setStatus('Python-kode genereret fra klassediagrammet.');
+      setStatus(`Python-kode genereret fra ${state.diagramKind === 'flow' ? 'rutediagrammet' : 'klassediagrammet'}.`);
     }
 
     function closePythonDialog() { document.getElementById('pythonDialog').hidden = true; }
@@ -1412,7 +1660,7 @@ if ready:
         const node = nodeById(nodeEl.dataset.nodeId);
         if (state.mode === 'relation') {
           if (!state.relationStart) { state.relationStart = node.id; setStatus(`Kilde valgt: ${node.name}. Klik nu på målklassen.`); }
-          else if (state.relationStart !== node.id) { const edge = addEdge(state.relationStart, node.id, 'association'); state.relationStart = null; setMode('select'); select('edge', edge.id); }
+          else if (state.relationStart !== node.id) { const edge = addEdge(state.relationStart, node.id, state.diagramKind === 'flow' ? 'dependency' : 'association'); state.relationStart = null; setMode('select'); select('edge', edge.id); }
           return;
         }
         select('node', node.id);
@@ -1464,6 +1712,11 @@ if ready:
       }
     });
 
+    document.getElementById('classDiagramTool').addEventListener('click', () => setDiagramKind('class'));
+    document.getElementById('flowDiagramTool').addEventListener('click', () => setDiagramKind('flow'));
+    document.querySelectorAll('.flow-symbol').forEach(symbol => symbol.addEventListener('dragstart', handleFlowDragStart));
+    canvas.addEventListener('dragover', handleCanvasDragOver);
+    canvas.addEventListener('drop', handleCanvasDrop);
     document.getElementById('selectTool').addEventListener('click', () => setMode('select'));
     document.getElementById('classTool').addEventListener('click', () => setMode('class'));
     document.getElementById('relationTool').addEventListener('click', () => setMode('relation'));
@@ -1499,6 +1752,10 @@ if ready:
       const arrowSteps = {ArrowLeft: [-1, 0], ArrowRight: [1, 0], ArrowUp: [0, -1], ArrowDown: [0, 1]};
       const arrowKeyAliases = {Left: 'ArrowLeft', Right: 'ArrowRight', Up: 'ArrowUp', Down: 'ArrowDown'};
       const arrowKey = arrowKeyAliases[event.key] || (arrowSteps[event.key] ? event.key : event.code);
+      if (!editingField && state.diagramKind === 'flow' && (event.ctrlKey || event.metaKey) && arrowSteps[arrowKey] && connectSelectedFlowNode(arrowKey)) {
+        event.preventDefault();
+        return;
+      }
       if (!editingField && arrowSteps[arrowKey] && moveSelectedNode(...arrowSteps[arrowKey].map(value => value * (event.shiftKey ? 10 : 1)))) {
         event.preventDefault();
         return;
@@ -1512,6 +1769,7 @@ if ready:
     });
 
     blankDiagram();
+    if (new URLSearchParams(window.location.search).get('diagram') === 'flow') setDiagramKind('flow');
   </script>
 </body>
 </html>

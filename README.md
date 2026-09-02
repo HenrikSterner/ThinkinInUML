@@ -1,6 +1,6 @@
 # ThinkInUML
 
-En enkel browserbaseret editor til klasse- og flowdiagrammer.
+En enkel browserbaseret editor til klasse- og flowdiagrammer samt blok programmering.
 
 Åbn GitHub Pages-siden:
 
@@ -16,6 +16,8 @@ https://<brugernavn>.github.io/ThinkinInUML/
 - Eksporter PlantUML (`.puml`)
 - Generer diagrammer fra Python-kode
 - Gem diagrammet som PNG
+- Byg Python-programmer med blokke
+- Se og gem genereret Python-kode side om side med blok-editoren
 
 ## Brug
 
@@ -25,3 +27,5 @@ https://<brugernavn>.github.io/ThinkinInUML/
 4. Brug panelet til højre til at redigere navne, attributter, metoder og relationer.
 
 Projektet kræver ingen installation. Det er en statisk HTML-side og kan hostes direkte med GitHub Pages.
+
+Blockly-editoren åbnes via `blockly-python.html` fra forsiden.
