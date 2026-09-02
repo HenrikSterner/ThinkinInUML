@@ -18,6 +18,7 @@ https://<brugernavn>.github.io/ThinkinInUML/
 - Gem diagrammet som PNG
 - Byg Python-programmer med blokke
 - Se og gem genereret Python-kode side om side med blok-editoren
+- Visualisér små Python-kodestumper trin for trin med call stack, heap, output og rekursionstræ
 
 ## Brug
 
@@ -29,3 +30,4 @@ https://<brugernavn>.github.io/ThinkinInUML/
 Projektet kræver ingen installation. Det er en statisk HTML-side og kan hostes direkte med GitHub Pages.
 
 Blockly-editoren åbnes via `blockly-python.html` fra forsiden.
+Kodevisualiseringen åbnes via `code-visualizer.html` fra forsiden.
