@@ -1,0 +1,547 @@
+<!doctype html>
+<html lang="da">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Regex-værksted – regulære udtryk</title>
+  <style>
+    :root {
+      --ink: #172033;
+      --muted: #64748b;
+      --paper: #fffdf9;
+      --panel: #f4f1eb;
+      --line: #d9d4ca;
+      --blue: #2757a5;
+      --blue-soft: #e8f0ff;
+      --orange: #d97735;
+      --orange-soft: #fff0e4;
+      --green: #217a57;
+      --green-soft: #e7f7ef;
+      --red: #b54040;
+      --red-soft: #fff0f0;
+      --shadow: 0 16px 45px rgb(37 50 70 / 10%);
+    }
+    * { box-sizing: border-box; }
+    html, body { min-height: 100%; margin: 0; }
+    body {
+      color: var(--ink);
+      background: #e8e4dc;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+    button, input, textarea { font: inherit; }
+    button { cursor: pointer; }
+    button:focus-visible, input:focus-visible, textarea:focus-visible { outline: 3px solid #9cbcff; outline-offset: 2px; }
+    .app { width: min(1500px, calc(100% - 32px)); min-height: 100vh; margin: 0 auto; background: var(--paper); box-shadow: var(--shadow); }
+    .topbar { display: flex; align-items: center; gap: 16px; padding: 20px 28px; border-bottom: 1px solid var(--line); background: #fff; }
+    .brand-mark { display: grid; place-items: center; width: 42px; height: 42px; flex: 0 0 auto; color: white; background: var(--blue); border-radius: 12px; font: 800 22px/1 Consolas, monospace; box-shadow: 4px 4px 0 #b9ccef; }
+    .brand h1 { margin: 0; font-size: clamp(19px, 2.5vw, 28px); letter-spacing: -.03em; }
+    .brand p { margin: 3px 0 0; color: var(--muted); font-size: 13px; }
+    .topbar .home { margin-left: auto; color: var(--blue); font-size: 13px; text-decoration: none; white-space: nowrap; }
+    .topbar .home:hover { text-decoration: underline; }
+    .intro { display: flex; gap: 18px; align-items: flex-start; padding: 24px 28px 18px; background: linear-gradient(110deg, #fffdf9, #f7f9ff); }
+    .intro .eyebrow { margin: 0 0 5px; color: var(--orange); font-size: 11px; font-weight: 800; letter-spacing: .13em; text-transform: uppercase; }
+    .intro h2 { margin: 0; font-size: clamp(21px, 3vw, 33px); letter-spacing: -.04em; }
+    .intro p { max-width: 760px; margin: 7px 0 0; color: #4d5a6d; line-height: 1.5; }
+    .hint-card { margin-left: auto; min-width: 210px; padding: 12px 14px; border: 1px solid #cbd8ef; border-radius: 12px; color: #34517e; background: #f5f8ff; font-size: 12px; line-height: 1.45; }
+    .hint-card strong { display: block; margin-bottom: 3px; color: var(--blue); }
+    .workbench { display: grid; grid-template-columns: 250px minmax(390px, 1fr) 290px; min-height: 690px; border-top: 1px solid var(--line); }
+    .palette, .learn { padding: 20px; background: var(--panel); }
+    .palette { border-right: 1px solid var(--line); }
+    .learn { border-left: 1px solid var(--line); }
+    .center { min-width: 0; padding: 20px clamp(18px, 3vw, 32px) 30px; }
+    .section-title { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin: 0 0 10px; }
+    .section-title h3 { margin: 0; font-size: 14px; letter-spacing: .01em; }
+    .section-title span { color: var(--muted); font-size: 11px; }
+    .palette-group { margin-bottom: 20px; }
+    .palette-group h4 { margin: 0 0 7px; color: #756f66; font-size: 10px; letter-spacing: .11em; text-transform: uppercase; }
+    .token-palette { display: grid; gap: 6px; }
+    .palette-token {
+      display: flex; align-items: center; gap: 9px; width: 100%; min-height: 38px; padding: 6px 8px;
+      border: 1px solid #d5d0c6; border-radius: 8px; color: var(--ink); background: #fff; text-align: left;
+      transition: transform .12s, border-color .12s, background .12s;
+    }
+    .palette-token:hover { transform: translateX(2px); border-color: #9fb5df; background: #f8fbff; }
+    .palette-token:active { cursor: grabbing; }
+    .token-glyph { display: inline-grid; place-items: center; min-width: 34px; min-height: 25px; padding: 2px 5px; border-radius: 5px; color: var(--blue); background: var(--blue-soft); font: 700 14px/1.2 Consolas, monospace; white-space: pre; }
+    .palette-token .token-name { font-size: 12px; }
+    .palette-note { margin: 8px 0 0; color: var(--muted); font-size: 11px; line-height: 1.4; }
+    .drop-zone { min-height: 128px; padding: 14px; border: 2px dashed #b8c7e1; border-radius: 13px; background: #f8fbff; transition: border-color .15s, background .15s; }
+    .drop-zone.drag-over { border-color: var(--blue); background: #edf4ff; }
+    .drop-zone.empty { display: grid; place-items: center; color: #7890b8; text-align: center; }
+    .drop-placeholder { pointer-events: none; font-size: 13px; line-height: 1.45; }
+    .drop-placeholder .plus { display: block; margin-bottom: 5px; font: 700 25px/1 Consolas, monospace; }
+    .builder-tokens { display: flex; flex-wrap: wrap; align-items: center; gap: 7px; min-height: 94px; }
+    .builder-token { display: inline-flex; align-items: center; gap: 4px; padding: 5px 5px 5px 8px; border: 1px solid #a9bcdf; border-radius: 7px; color: #1e427f; background: white; font: 700 16px/1.2 Consolas, monospace; cursor: grab; box-shadow: 0 2px 0 #d5e0f4; }
+    .builder-token:hover { border-color: var(--blue); }
+    .builder-token.dragging { opacity: .45; }
+    .builder-token .remove-token { display: grid; place-items: center; width: 19px; height: 19px; padding: 0; border: 0; border-radius: 50%; color: #7082a3; background: transparent; font: 700 16px/1 Arial, sans-serif; }
+    .builder-token .remove-token:hover { color: var(--red); background: var(--red-soft); }
+    .expression-row { display: grid; grid-template-columns: 1fr auto; gap: 9px; align-items: end; margin-top: 13px; }
+    .field label { display: block; margin: 0 0 5px; color: #526174; font-size: 11px; font-weight: 800; letter-spacing: .04em; text-transform: uppercase; }
+    .field input, .field textarea { width: 100%; border: 1px solid #c8cdd5; border-radius: 8px; color: var(--ink); background: white; }
+    .field input { padding: 10px 12px; font: 16px Consolas, "Courier New", monospace; }
+    .field textarea { min-height: 86px; padding: 10px 12px; resize: vertical; line-height: 1.45; }
+    .action-button { padding: 10px 14px; border: 1px solid var(--blue); border-radius: 8px; color: white; background: var(--blue); font-weight: 700; white-space: nowrap; }
+    .action-button:hover { background: #1d4384; }
+    .sub-actions { display: flex; gap: 8px; margin-top: 9px; }
+    .small-button { padding: 6px 9px; border: 1px solid #c5c0b6; border-radius: 6px; color: #536073; background: white; font-size: 11px; }
+    .small-button:hover { border-color: #9da8bb; background: #fafafa; }
+    .help-line { margin: 8px 0 0; color: var(--muted); font-size: 11px; }
+    .test-card { margin-top: 24px; padding-top: 20px; border-top: 1px solid var(--line); }
+    .test-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+    .match-mode { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; }
+    .mode-label { display: flex; align-items: center; gap: 6px; padding: 7px 9px; border: 1px solid #d2d6dc; border-radius: 7px; color: #536073; background: white; font-size: 12px; cursor: pointer; }
+    .mode-label:has(input:checked) { border-color: #9cb8ec; color: var(--blue); background: var(--blue-soft); }
+    .mode-label input { accent-color: var(--blue); }
+    .flags { display: flex; align-items: center; gap: 7px; margin-top: 13px; color: #536073; font-size: 12px; }
+    .flags label { display: inline-flex; align-items: center; gap: 4px; }
+    .flags input { accent-color: var(--blue); }
+    .test-button { width: 100%; margin-top: 15px; padding: 12px; border: 0; border-radius: 8px; color: white; background: var(--orange); font-weight: 800; }
+    .test-button:hover { background: #b95f24; }
+    .result { min-height: 112px; margin-top: 14px; padding: 13px 15px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+    .result.neutral { color: var(--muted); }
+    .result.success { border-color: #a9d9c0; background: var(--green-soft); }
+    .result.failure { border-color: #efb7b7; background: var(--red-soft); }
+    .result.warning { border-color: #e8c38e; background: #fff8eb; }
+    .result-title { display: flex; align-items: center; gap: 8px; margin-bottom: 7px; font-weight: 800; }
+    .result p { margin: 4px 0 0; color: #556273; font-size: 12px; line-height: 1.45; }
+    .result code { padding: 2px 4px; border-radius: 4px; color: #253b64; background: rgb(255 255 255 / 70%); font-family: Consolas, monospace; }
+    .highlight { margin-top: 10px; padding: 8px 9px; overflow-wrap: anywhere; border-radius: 6px; color: #40516b; background: rgb(255 255 255 / 70%); font: 13px Consolas, monospace; white-space: pre-wrap; }
+    .highlight mark { padding: 2px 0; border-radius: 3px; color: #7a3b15; background: #ffc98e; }
+    .learn-card { padding: 13px; border: 1px solid #ddd8cf; border-radius: 10px; background: #fff; }
+    .learn-card + .learn-card { margin-top: 14px; }
+    .learn-card h3 { margin: 0 0 7px; font-size: 14px; }
+    .learn-card p { margin: 0; color: #596678; font-size: 12px; line-height: 1.5; }
+    .explanation-list { display: grid; gap: 7px; margin: 0; padding: 0; list-style: none; }
+    .explanation-list li { display: grid; grid-template-columns: 70px 1fr; gap: 8px; align-items: start; font-size: 11px; line-height: 1.35; }
+    .explanation-list code { overflow-wrap: anywhere; padding: 3px 5px; border-radius: 4px; color: #244f99; background: var(--blue-soft); font: 700 12px Consolas, monospace; }
+    .explanation-list span { color: #5c6876; }
+    .tip { padding: 10px 11px; border-left: 3px solid var(--orange); color: #6d5948; background: var(--orange-soft); font-size: 11px; line-height: 1.45; }
+    .examples { padding: 22px 28px 30px; border-top: 1px solid var(--line); background: #fff; }
+    .examples h2 { margin: 0; font-size: 17px; }
+    .examples > p { margin: 5px 0 14px; color: var(--muted); font-size: 12px; }
+    .example-grid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; }
+    .example-card { min-height: 112px; padding: 12px; border: 1px solid #dbd6ce; border-radius: 9px; color: var(--ink); background: #fffdf9; text-align: left; }
+    .example-card:hover { border-color: #9fb5df; background: #f8fbff; }
+    .example-card strong { display: block; margin-bottom: 8px; font-size: 12px; }
+    .example-card code { display: block; overflow-wrap: anywhere; color: var(--blue); font: 12px Consolas, monospace; }
+    .example-card small { display: block; margin-top: 7px; color: var(--muted); font-size: 11px; }
+    footer { padding: 11px 28px; color: #7a7d84; border-top: 1px solid var(--line); background: #faf9f6; font-size: 11px; text-align: center; }
+    @media (max-width: 1120px) { .workbench { grid-template-columns: 220px minmax(350px, 1fr); } .learn { grid-column: 1 / -1; display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; border-top: 1px solid var(--line); border-left: 0; } .learn-card + .learn-card { margin-top: 0; } }
+    @media (max-width: 760px) { .app { width: 100%; } .topbar, .intro, .examples { padding-left: 18px; padding-right: 18px; } .hint-card { display: none; } .workbench { display: block; } .palette, .learn { border: 0; border-bottom: 1px solid var(--line); } .palette { display: grid; grid-template-columns: 1fr 1fr; gap: 13px; } .palette .section-title { grid-column: 1 / -1; margin-bottom: -4px; } .palette-group { margin-bottom: 0; } .learn { display: block; } .learn-card + .learn-card { margin-top: 14px; } .example-grid { grid-template-columns: 1fr 1fr; } }
+    @media (max-width: 480px) { .topbar { gap: 10px; } .brand p { display: none; } .expression-row, .test-grid { grid-template-columns: 1fr; } .example-grid, .palette { grid-template-columns: 1fr; } .palette .section-title { grid-column: auto; } }
+
+    /* Samme visuelle grundtema som de øvrige ThinkInUML-værktøjer. */
+    :root { --muted: #697386; --paper: #f7f8fb; --panel: #fff; --line: #dfe4ec; --blue: #356ae6; --blue-soft: #eaf0ff; --orange: #c56b24; --orange-soft: #fff5eb; --green: #16835b; --green-soft: #effaf4; --red-soft: #fff5f5; }
+    body { color: var(--ink); background: var(--paper); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+    button { border-radius: 8px; border-color: var(--line); transition: .15s ease; }
+    button:hover { border-color: #b8c3d4; background: #f8faff; }
+    .app { width: 100%; min-height: 100vh; background: transparent; box-shadow: none; }
+    .topbar { min-height: 64px; padding: 12px clamp(16px, 3vw, 38px); background: #fff; border-bottom-color: var(--line); }
+    .brand-mark { width: 30px; height: 30px; border-radius: 9px; background: var(--blue); box-shadow: none; font: 800 16px/1 Arial, sans-serif; }
+    .brand { display: flex; align-items: center; gap: 10px; margin-right: 0; font-size: 17px; font-weight: 760; letter-spacing: -.02em; }
+    .topbar a { color: var(--muted); text-decoration: none; }
+    .brand { color: var(--ink); }
+    .brand h1 { font-size: inherit; letter-spacing: inherit; }
+    .brand p { display: none; }
+    .topbar .home { margin-left: auto; color: var(--muted); }
+    .topbar .home:hover { color: var(--blue); text-decoration: none; }
+    .intro { width: min(1440px, calc(100% - 32px)); margin: 0 auto; padding: 29px 0 0; background: transparent; }
+    .intro .eyebrow { color: var(--blue); }
+    .intro h2 { font-size: clamp(25px, 3vw, 38px); line-height: 1.05; letter-spacing: -.045em; }
+    .intro p { color: var(--muted); }
+    .hint-card { border-color: #dbe4ff; border-radius: 10px; color: #49619a; background: #f2f5ff; }
+    .hint-card strong { color: var(--blue); }
+    .workbench { width: min(1440px, calc(100% - 32px)); margin: 23px auto 0; min-height: 690px; gap: 16px; border-top: 0; }
+    .palette, .center, .learn { min-width: 0; border: 1px solid var(--line); border-radius: 13px; background: var(--panel); box-shadow: 0 4px 18px rgb(30 49 90 / 5%); }
+    .palette, .learn { padding: 16px; }
+    .palette { border-right: 1px solid var(--line); }
+    .learn { border-left: 1px solid var(--line); }
+    .center { padding: 16px 22px 24px; }
+    .palette-token { border-color: var(--line); border-radius: 8px; }
+    .token-glyph { color: var(--blue); background: var(--blue-soft); }
+    .drop-zone { border-color: #b8caff; background: #f2f5ff; border-radius: 10px; }
+    .drop-zone.drag-over { border-color: var(--blue); background: #eaf0ff; }
+    .builder-token { border-color: #a7bfff; color: #315bb0; background: #fff; box-shadow: none; }
+    .field input, .field textarea { border-color: var(--line); border-radius: 8px; }
+    .action-button, .test-button { background: var(--blue); border-color: var(--blue); }
+    .action-button:hover, .test-button:hover { background: #2859ca; }
+    .small-button { border-color: var(--line); }
+    .result.success { border-color: #cfe8dc; background: var(--green-soft); }
+    .result.failure { border-color: #f2c8c8; background: var(--red-soft); }
+    .result.warning { border-color: #efd6b7; background: #fff8ef; }
+    .learn-card, .example-card { border-color: var(--line); border-radius: 10px; }
+    .learn-card { box-shadow: none; }
+    .examples { width: min(1440px, calc(100% - 32px)); margin: 16px auto 0; padding: 22px 0 30px; background: transparent; }
+    .example-card { background: #fff; }
+    .example-card:hover { border-color: #b8c3d4; background: #f8faff; }
+    footer { width: 100%; padding: 10px 14px; border-top-color: var(--line); background: #fff; color: var(--muted); }
+    @media (max-width: 1120px) { .workbench, .examples { width: min(1440px, calc(100% - 32px)); } }
+    @media (max-width: 760px) { .intro, .workbench, .examples { width: calc(100% - 20px); } .workbench { margin-top: 20px; } }
+    @media (max-width: 760px) { .topbar a.brand { display: flex; } }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <a class="brand" href="index.html"><span class="brand-mark">T</span> ThinkInUML</a>
+      <div class="toolbar-separator"></div>
+      <strong>Regex-værksted</strong>
+      <a class="home" href="index.html">← Til forsiden</a>
+    </header>
+
+    <section class="intro">
+      <div>
+        <p class="eyebrow">Kapitel 9 · Regulære udtryk</p>
+        <h2>Hvad kan dit mønster finde?</h2>
+        <p>Træk tegn fra paletten ned i byggefeltet. Skriv derefter en tekst og se med det samme, om udtrykket matcher. Prøv dig frem – et regulært udtryk er et mønster, ikke en magisk formel.</p>
+      </div>
+      <div class="hint-card"><strong>Sådan kommer du i gang</strong>1. Vælg eller træk et tegn.<br>2. Sæt tegnene sammen.<br>3. Test mønsteret på en tekst.</div>
+    </section>
+
+    <main class="workbench">
+      <aside class="palette" aria-label="Palette med tegn">
+        <div class="section-title"><h3>1 · Vælg et tegn</h3><span>klik eller træk</span></div>
+        <div class="palette-group">
+          <h4>Litteraler</h4>
+          <div class="token-palette">
+            <button class="palette-token" draggable="true" data-token="a" title="Et almindeligt bogstav"><span class="token-glyph">a</span><span class="token-name">bogstav</span></button>
+            <button class="palette-token" draggable="true" data-token="0" title="Et almindeligt tal"><span class="token-glyph">0</span><span class="token-name">tal</span></button>
+            <button class="palette-token" draggable="true" data-token="@" title="Det bogstavelige snabel-a"><span class="token-glyph">@</span><span class="token-name">tegn</span></button>
+          </div>
+        </div>
+        <div class="palette-group">
+          <h4>Metategn</h4>
+          <div class="token-palette">
+            <button class="palette-token" draggable="true" data-token="." title="Et vilkårligt tegn"><span class="token-glyph">.</span><span class="token-name">vilkårligt tegn</span></button>
+            <button class="palette-token" draggable="true" data-token="^" title="Starten af teksten"><span class="token-glyph">^</span><span class="token-name">start</span></button>
+            <button class="palette-token" draggable="true" data-token="$" title="Slutningen af teksten"><span class="token-glyph">$</span><span class="token-name">slut</span></button>
+            <button class="palette-token" draggable="true" data-token="|" title="Enten det ene eller det andet"><span class="token-glyph">|</span><span class="token-name">eller</span></button>
+          </div>
+        </div>
+        <div class="palette-group">
+          <h4>Gentagelser</h4>
+          <div class="token-palette">
+            <button class="palette-token" draggable="true" data-token="*" title="0 eller flere"><span class="token-glyph">*</span><span class="token-name">0 eller flere</span></button>
+            <button class="palette-token" draggable="true" data-token="+" title="1 eller flere"><span class="token-glyph">+</span><span class="token-name">1 eller flere</span></button>
+            <button class="palette-token" draggable="true" data-token="?" title="0 eller 1"><span class="token-glyph">?</span><span class="token-name">valgfrit</span></button>
+            <button class="palette-token" draggable="true" data-token="{2}" title="Præcis 2"><span class="token-glyph">{2}</span><span class="token-name">præcis 2</span></button>
+            <button class="palette-token" draggable="true" data-token="{2,}" title="Mindst 2"><span class="token-glyph">{2,}</span><span class="token-name">mindst 2</span></button>
+            <button class="palette-token" draggable="true" data-token="{2,4}" title="Mellem 2 og 4"><span class="token-glyph">{2,4}</span><span class="token-name">2 til 4</span></button>
+          </div>
+        </div>
+        <div class="palette-group">
+          <h4>Escapetegn</h4>
+          <div class="token-palette">
+            <button class="palette-token" draggable="true" data-token="\." title="Et bogstaveligt punktum"><span class="token-glyph">\.</span><span class="token-name">punktum</span></button>
+            <button class="palette-token" draggable="true" data-token="\+" title="Et bogstaveligt plustegn"><span class="token-glyph">\+</span><span class="token-name">plustegn</span></button>
+            <button class="palette-token" draggable="true" data-token="\\" title="En bogstavelig backslash"><span class="token-glyph">\\</span><span class="token-name">backslash</span></button>
+          </div>
+        </div>
+        <div class="palette-group">
+          <h4>Klasser og grupper</h4>
+          <div class="token-palette">
+            <button class="palette-token" draggable="true" data-token="\d" title="Et ciffer"><span class="token-glyph">\d</span><span class="token-name">ciffer</span></button>
+            <button class="palette-token" draggable="true" data-token="\w" title="Bogstav, tal eller understregning"><span class="token-glyph">\w</span><span class="token-name">ordtegn</span></button>
+            <button class="palette-token" draggable="true" data-token="\s" title="Whitespace: mellemrum, tab eller linjeskift"><span class="token-glyph">\s</span><span class="token-name">mellemrum</span></button>
+            <button class="palette-token" draggable="true" data-token="\D" title="Et tegn, der ikke er et ciffer"><span class="token-glyph">\D</span><span class="token-name">ikke-ciffer</span></button>
+            <button class="palette-token" draggable="true" data-token="\W" title="Et tegn, der ikke er et ordtegn"><span class="token-glyph">\W</span><span class="token-name">ikke-ordtegn</span></button>
+            <button class="palette-token" draggable="true" data-token="\S" title="Et tegn, der ikke er whitespace"><span class="token-glyph">\S</span><span class="token-name">ikke-mellemrum</span></button>
+            <button class="palette-token" draggable="true" data-token="[a-z]" title="Et bogstav fra a til z"><span class="token-glyph">[a-z]</span><span class="token-name">tegnklasse</span></button>
+            <button class="palette-token" draggable="true" data-token="(" title="Begynd en gruppe"><span class="token-glyph">(</span><span class="token-name">gruppestart</span></button>
+            <button class="palette-token" draggable="true" data-token=")" title="Afslut en gruppe"><span class="token-glyph">)</span><span class="token-name">gruppeslut</span></button>
+          </div>
+          <p class="palette-note">Tip: Et punktum er et metategn. Hvis du vil matche selve punktummet, så brug <code>\.</code> fra eksemplet nedenfor.</p>
+        </div>
+      </aside>
+
+      <section class="center" aria-label="Byg og test dit regulære udtryk">
+        <div class="section-title"><h3>2 · Byg dit udtryk</h3><span id="tokenCount">0 tegn</span></div>
+        <div id="dropZone" class="drop-zone empty" aria-label="Slip tegn her for at bygge udtrykket">
+          <div id="dropPlaceholder" class="drop-placeholder"><span class="plus">+</span>Slip tegnene her<br>eller klik på et tegn i paletten</div>
+          <div id="builderTokens" class="builder-tokens"></div>
+        </div>
+        <div class="expression-row">
+          <div class="field">
+            <label for="expression">Dit regulære udtryk</label>
+            <input id="expression" type="text" spellcheck="false" autocomplete="off" placeholder="Fx ^Hej$" aria-describedby="expressionHelp">
+          </div>
+          <button id="clearExpression" class="small-button" type="button">Ryd</button>
+        </div>
+        <p id="expressionHelp" class="help-line">Du kan også skrive direkte i feltet. Byggefeltet viser de tegn, du har trukket ind.</p>
+        <div class="sub-actions"><button id="undoButton" class="small-button" type="button">Fortryd sidste tegn</button></div>
+
+        <div class="test-card">
+          <div class="section-title"><h3>3 · Test en tekst</h3><span>JavaScript RegExp</span></div>
+          <div class="test-grid">
+            <div class="field"><label for="testString">Tekst, der skal testes</label><textarea id="testString" spellcheck="false" placeholder="Skriv fx Hej verden"></textarea></div>
+            <div>
+              <label class="field"><span style="display:block;margin:0 0 5px;color:#526174;font-size:11px;font-weight:800;letter-spacing:.04em;text-transform:uppercase">Hvad skal testes?</span></label>
+              <div class="match-mode">
+                <label class="mode-label"><input type="radio" name="matchMode" value="full" checked> Hele teksten</label>
+                <label class="mode-label"><input type="radio" name="matchMode" value="search"> Find i teksten</label>
+              </div>
+              <div class="flags"><span>Flag:</span><label><input id="ignoreCase" type="checkbox"> <code>i</code> store/små</label><label><input id="multiline" type="checkbox"> <code>m</code> flere linjer</label></div>
+            </div>
+          </div>
+          <button id="testButton" class="test-button" type="button">Test udtrykket</button>
+          <div id="result" class="result neutral" aria-live="polite"><div class="result-title">Klar til at teste</div><p>Byg eller skriv et udtryk, og giv det en tekst at arbejde på.</p></div>
+        </div>
+      </section>
+
+      <aside class="learn" aria-label="Forklaringer">
+        <div class="learn-card">
+          <h3>Hvad betyder delene?</h3>
+          <ul id="explanationList" class="explanation-list"><li><code>—</code><span>Forklaringen på dit udtryk vises her.</span></li></ul>
+        </div>
+        <div class="learn-card">
+          <h3>Match eller søg?</h3>
+          <p><strong>Hele teksten</strong> kræver, at mønsteret passer fra start til slut. Det er smart til validering af fx en email.</p>
+          <p style="margin-top:8px"><strong>Find i teksten</strong> leder efter mønsteret et sted i teksten. Det svarer til den måde, mange introducerende eksempler bruger <code>re.search()</code> på i Python.</p>
+        </div>
+        <div class="tip"><strong>Prøv dette:</strong> Byg <code>^Hej .+$</code>. Punktummet finder ét vilkårligt tegn, mens <code>+</code> kræver mindst ét tegn bagefter.</div>
+      </aside>
+    </main>
+
+    <section class="examples">
+      <h2>Start med et eksempel fra kapitlet</h2>
+      <p>Indlæser både udtryk og testtekst, så du kan ændre én del ad gangen.</p>
+      <div class="example-grid">
+        <button class="example-card" type="button" data-expression="^[a-zA-Z0-9_]+@[a-zA-Z0-9]+\.[a-zA-Z]{2,}$" data-test="elev2026@htx.dk" data-mode="full"><strong>En enkel email</strong><code>^[a-zA-Z0-9_]+@...</code><small>tegnklasser · + · {2,}</small></button>
+        <button class="example-card" type="button" data-expression="Hej .+" data-test="Hej verden" data-mode="search"><strong>Hej + noget mere</strong><code>Hej .+</code><small>punktum · mindst én</small></button>
+        <button class="example-card" type="button" data-expression="^\d{2}( \d{2}){3}$" data-test="12 34 56 78" data-mode="full"><strong>Dansk telefonnummer</strong><code>^\d{2}( \d{2}){3}$</code><small>cifre · gruppe · gentagelse</small></button>
+        <button class="example-card" type="button" data-expression="(?=.*\d)(?=.*[a-z]).{8,}" data-test="sommer2026" data-mode="full"><strong>Password med krav</strong><code>(?=.*\d)(?=.*[a-z])...</code><small>look-ahead · {8,}</small></button>
+      </div>
+    </section>
+    <footer class="copyright">Copyright (C) Henrik Sterner (udvikler) og Kathrine Bohus Madsen - Værktøj til lærebogen Python I Gymnasiet</footer>
+  </div>
+
+  <script>
+    'use strict';
+
+    const expressionInput = document.getElementById('expression');
+    const testStringInput = document.getElementById('testString');
+    const dropZone = document.getElementById('dropZone');
+    const dropPlaceholder = document.getElementById('dropPlaceholder');
+    const builderTokens = document.getElementById('builderTokens');
+    const tokenCount = document.getElementById('tokenCount');
+    const explanationList = document.getElementById('explanationList');
+    const result = document.getElementById('result');
+    let builder = [];
+    let dragSource = null;
+
+    const explanations = {
+      '.': 'Et vilkårligt tegn (undtagen normalt linjeskift).',
+      '^': 'Starten af teksten eller starten af en linje med flaget m.',
+      '$': 'Slutningen af teksten eller slutningen af en linje med flaget m.',
+      '|': 'Alternativ: enten det, der står før, eller det, der står efter.',
+      '*': 'Gentag det foregående tegn eller den foregående gruppe 0 eller flere gange.',
+      '+': 'Gentag det foregående tegn eller den foregående gruppe 1 eller flere gange.',
+      '?': 'Gør det foregående tegn eller den foregående gruppe valgfri: 0 eller 1 gang.',
+      '{2}': 'Gentag det foregående tegn eller den foregående gruppe præcis 2 gange.',
+      '{2,}': 'Gentag det foregående tegn eller den foregående gruppe mindst 2 gange.',
+      '{2,4}': 'Gentag det foregående tegn eller den foregående gruppe fra 2 til 4 gange.',
+      '\\d': 'Et ciffer fra 0 til 9.',
+      '\\w': 'Et ordtegn: bogstav, tal eller understregning.',
+      '\\s': 'Et whitespace-tegn: fx mellemrum, tabulator eller linjeskift.',
+      '\\D': 'Et tegn, der ikke er et ciffer.',
+      '\\W': 'Et tegn, der ikke er et ordtegn.',
+      '\\S': 'Et tegn, der ikke er whitespace.',
+      '[a-z]': 'Et lille bogstav fra a til z.',
+      '(': 'Begynder en gruppe, så flere tegn kan behandles samlet.',
+      ')': 'Afslutter en gruppe.',
+      '\\.': 'Et bogstaveligt punktum. Backslash fjerner punktummets specialbetydning.',
+      '\\+': 'Et bogstaveligt plustegn.',
+      '\\\\': 'En bogstavelig backslash.'
+    };
+
+    const knownTokens = Object.keys(explanations).concat(['a', '0', '@']);
+    const escapeHtml = value => String(value).replace(/[&<>"']/g, char => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[char]));
+
+    function tokenExplanation(token) {
+      if (explanations[token]) return explanations[token];
+      if (/^\[.*\]$/.test(token)) return 'En tegnklasse: match ét af de tegn, der står mellem de kantede parenteser.';
+      if (token === '|') return explanations['|'];
+      if (token.length === 1 && /[a-zA-Z0-9@_-]/.test(token)) return 'En litteral: matcher præcis dette tegn.';
+      return 'Denne del bliver fortolket som en del af mønsteret.';
+    }
+
+    function renderBuilder() {
+      builderTokens.innerHTML = '';
+      dropZone.classList.toggle('empty', builder.length === 0);
+      dropPlaceholder.hidden = builder.length > 0;
+      tokenCount.textContent = `${builder.length} ${builder.length === 1 ? 'tegn' : 'tegn'}`;
+      builder.forEach((token, index) => {
+        const chip = document.createElement('span');
+        chip.className = 'builder-token';
+        chip.draggable = true;
+        chip.dataset.index = index;
+        chip.title = tokenExplanation(token);
+        chip.innerHTML = `<span>${escapeHtml(token)}</span><button class="remove-token" type="button" aria-label="Fjern ${escapeHtml(token)}">×</button>`;
+        chip.addEventListener('dragstart', event => {
+          dragSource = { type: 'builder', index };
+          chip.classList.add('dragging');
+          event.dataTransfer.effectAllowed = 'move';
+          event.dataTransfer.setData('text/plain', `builder:${index}`);
+        });
+        chip.addEventListener('dragend', () => { dragSource = null; chip.classList.remove('dragging'); });
+        chip.addEventListener('dragover', event => event.preventDefault());
+        chip.addEventListener('drop', event => {
+          event.preventDefault();
+          event.stopPropagation();
+          if (!dragSource) return;
+          if (dragSource.type === 'palette') {
+            addToken(dragSource.token, index);
+          } else if (dragSource.index !== index) {
+            const moved = builder.splice(dragSource.index, 1)[0];
+            builder.splice(dragSource.index < index ? index - 1 : index, 0, moved);
+            syncExpressionFromBuilder();
+            renderBuilder();
+          }
+        });
+        chip.querySelector('.remove-token').addEventListener('click', () => {
+          builder.splice(index, 1);
+          syncExpressionFromBuilder();
+          renderBuilder();
+        });
+        builderTokens.appendChild(chip);
+      });
+    }
+
+    function syncExpressionFromBuilder() {
+      expressionInput.value = builder.join('');
+      updateExplanation();
+    }
+
+    function addToken(token, atIndex = builder.length) {
+      builder.splice(atIndex, 0, token);
+      syncExpressionFromBuilder();
+      renderBuilder();
+    }
+
+    function insertDraggedToken(token, event) {
+      const target = event.target.closest('.builder-token');
+      const index = target ? Number(target.dataset.index) : builder.length;
+      addToken(token, index);
+    }
+
+    document.querySelectorAll('.palette-token').forEach(button => {
+      button.addEventListener('click', () => addToken(button.dataset.token));
+      button.addEventListener('dragstart', event => {
+        dragSource = { type: 'palette', token: button.dataset.token };
+        event.dataTransfer.effectAllowed = 'copy';
+        event.dataTransfer.setData('text/plain', `palette:${button.dataset.token}`);
+      });
+    });
+
+    dropZone.addEventListener('dragover', event => { event.preventDefault(); dropZone.classList.add('drag-over'); });
+    dropZone.addEventListener('dragleave', event => { if (!dropZone.contains(event.relatedTarget)) dropZone.classList.remove('drag-over'); });
+    dropZone.addEventListener('drop', event => {
+      event.preventDefault();
+      dropZone.classList.remove('drag-over');
+      const data = event.dataTransfer.getData('text/plain');
+      if (dragSource?.type === 'palette') insertDraggedToken(dragSource.token, event);
+      dragSource = null;
+    });
+
+    document.getElementById('clearExpression').addEventListener('click', () => {
+      builder = [];
+      expressionInput.value = '';
+      renderBuilder();
+      updateExplanation();
+      expressionInput.focus();
+    });
+    document.getElementById('undoButton').addEventListener('click', () => {
+      if (!builder.length) return;
+      builder.pop();
+      syncExpressionFromBuilder();
+      renderBuilder();
+    });
+    expressionInput.addEventListener('input', updateExplanation);
+
+    function splitExpression(expression) {
+      const tokens = [];
+      let rest = expression;
+      const choices = knownTokens.slice().sort((a, b) => b.length - a.length);
+      while (rest) {
+        const match = choices.find(token => rest.startsWith(token));
+        if (match) { tokens.push(match); rest = rest.slice(match.length); continue; }
+        if (rest.startsWith('[')) {
+          const end = rest.indexOf(']');
+          if (end > 0) { tokens.push(rest.slice(0, end + 1)); rest = rest.slice(end + 1); continue; }
+        }
+        if (rest.startsWith('\\') && rest.length > 1) { tokens.push(rest.slice(0, 2)); rest = rest.slice(2); continue; }
+        if (rest.startsWith('{')) {
+          const end = rest.indexOf('}');
+          if (end > 0) { tokens.push(rest.slice(0, end + 1)); rest = rest.slice(end + 1); continue; }
+        }
+        tokens.push(rest[0]);
+        rest = rest.slice(1);
+      }
+      return tokens;
+    }
+
+    function updateExplanation() {
+      const expression = expressionInput.value;
+      const tokens = splitExpression(expression);
+      explanationList.innerHTML = tokens.length ? tokens.map(token => `<li><code>${escapeHtml(token)}</code><span>${escapeHtml(tokenExplanation(token))}</span></li>`).join('') : '<li><code>—</code><span>Forklaringen på dit udtryk vises her.</span></li>';
+    }
+
+    function selectedMode() { return document.querySelector('input[name="matchMode"]:checked').value; }
+
+    function highlightMatch(text, start, length) {
+      if (start < 0 || length < 0) return escapeHtml(text);
+      return `${escapeHtml(text.slice(0, start))}<mark>${escapeHtml(text.slice(start, start + length) || '∅')}</mark>${escapeHtml(text.slice(start + length))}`;
+    }
+
+    function runTest() {
+      const expression = expressionInput.value;
+      const text = testStringInput.value;
+      const flags = `${document.getElementById('ignoreCase').checked ? 'i' : ''}${document.getElementById('multiline').checked ? 'm' : ''}`;
+      if (!expression) {
+        result.className = 'result warning';
+        result.innerHTML = '<div class="result-title">⚠️ Skriv et udtryk først</div><p>Træk mindst ét tegn ind i byggefeltet eller skriv direkte i feltet.</p>';
+        return;
+      }
+      try {
+        const mode = selectedMode();
+        const pattern = mode === 'full' ? `^(?:${expression})$` : expression;
+        const regex = new RegExp(expression, flags);
+        const found = regex.exec(text);
+        const match = mode === 'full' && (!found || found.index !== 0 || found[0].length !== text.length) ? null : found;
+        if (match) {
+          result.className = 'result success';
+          result.innerHTML = `<div class="result-title">✅ Udtrykket matcher</div><p>${mode === 'full' ? 'Hele teksten passer til mønsteret.' : `Der blev fundet et match fra tegn ${match.index + 1}.`}</p><div class="highlight">${highlightMatch(text, match.index, match[0].length)}</div>`;
+        } else {
+          result.className = 'result failure';
+          result.innerHTML = `<div class="result-title">✖ Intet match</div><p>${mode === 'full' ? 'Hele teksten passer ikke til mønsteret.' : 'Mønsteret blev ikke fundet i teksten.'}</p><div class="highlight">${escapeHtml(text) || '∅'}</div>`;
+        }
+      } catch (error) {
+        result.className = 'result warning';
+        result.innerHTML = `<div class="result-title">⚠️ Udtrykket kan ikke læses endnu</div><p>${escapeHtml(error.message)}. Tjek fx at parenteser og kantede parenteser er lukket.</p>`;
+      }
+    }
+
+    document.getElementById('testButton').addEventListener('click', runTest);
+    testStringInput.addEventListener('keydown', event => { if (event.ctrlKey && event.key === 'Enter') runTest(); });
+    expressionInput.addEventListener('keydown', event => { if (event.key === 'Enter') runTest(); });
+    document.querySelectorAll('input[name="matchMode"], #ignoreCase, #multiline').forEach(input => input.addEventListener('change', runTest));
+
+    function loadExample(card) {
+      const expression = card.dataset.expression;
+      builder = splitExpression(expression);
+      expressionInput.value = expression;
+      testStringInput.value = card.dataset.test;
+      document.querySelector(`input[name="matchMode"][value="${card.dataset.mode}"]`).checked = true;
+      renderBuilder();
+      updateExplanation();
+      runTest();
+      expressionInput.focus();
+    }
+    document.querySelectorAll('.example-card').forEach(card => card.addEventListener('click', () => loadExample(card)));
+
+    renderBuilder();
+    updateExplanation();
+  </script>
+</body>
+</html>
